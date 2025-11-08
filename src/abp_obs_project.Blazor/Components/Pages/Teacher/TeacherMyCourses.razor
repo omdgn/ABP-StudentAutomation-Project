@@ -51,9 +51,25 @@
                                         Caption="@L["Actions"]"
                                         Sortable="false">
                             <DisplayTemplate>
-                                <Button Color="Color.Primary" Size="Size.Small" Clicked="() => OpenCourseDetailsModal(context)">
-                                    <i class="fas fa-eye me-1"></i>@L["View"]
-                                </Button>
+                                <Dropdown>
+                                    <DropdownToggle Color="Color.Primary" Size="Size.Small">
+                                        <i class="fa fa-cog"></i> @L["Actions"]
+                                    </DropdownToggle>
+                                    <DropdownMenu>
+                                        <DropdownItem Clicked="() => OpenCourseDetailsModal(context)">
+                                            <i class="fas fa-eye me-1"></i>@L["ViewDetails"]
+                                        </DropdownItem>
+                                        <DropdownItem Clicked="() => OpenUpdateStatusModal(context)">
+                                            <i class="fas fa-edit me-1"></i>@L["UpdateStatus"]
+                                        </DropdownItem>
+                                        <DropdownItem Clicked="() => NavigateToGrades(context)">
+                                            <i class="fas fa-star me-1"></i>@L["ManageGrades"]
+                                        </DropdownItem>
+                                        <DropdownItem Clicked="() => NavigateToAttendances(context)">
+                                            <i class="fas fa-calendar-check me-1"></i>@L["ManageAttendances"]
+                                        </DropdownItem>
+                                    </DropdownMenu>
+                                </Dropdown>
                             </DisplayTemplate>
                         </DataGridColumn>
                     </DataGridColumns>
@@ -123,6 +139,38 @@
         </ModalBody>
         <ModalFooter>
             <Button Color="Color.Secondary" Clicked="CloseCourseDetailsModal">@L["Close"]</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<!-- Update Status Modal -->
+<Modal @ref="UpdateStatusModal">
+    <ModalContent Centered>
+        <ModalHeader>
+            <ModalTitle>@L["UpdateCourseStatus"]</ModalTitle>
+            <CloseButton Clicked="CloseUpdateStatusModal" />
+        </ModalHeader>
+        <ModalBody>
+            @if (EditingCourse != null)
+            {
+                <Field>
+                    <FieldLabel>@L["Course"]</FieldLabel>
+                    <TextEdit Text="@EditingCourse.Name" ReadOnly="true" />
+                </Field>
+                <Field>
+                    <FieldLabel>@L["Status"] *</FieldLabel>
+                    <Select TValue="EnumCourseStatus" @bind-SelectedValue="@NewStatus">
+                        @foreach (var status in Enum.GetValues<EnumCourseStatus>())
+                        {
+                            <SelectItem Value="@status">@L[$"Enum:CourseStatus.{status}"]</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseUpdateStatusModal">@L["Cancel"]</Button>
+            <Button Color="Color.Primary" Clicked="UpdateCourseStatusAsync">@L["Save"]</Button>
         </ModalFooter>
     </ModalContent>
 </Modal>

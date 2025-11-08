@@ -15,14 +15,20 @@ public partial class TeacherMyCourses
 {
     [Inject] public ICourseAppService CourseAppService { get; set; } = default!;
     [Inject] public new IAuthorizationService AuthorizationService { get; set; } = default!;
+    [Inject] public NavigationManager NavigationManager { get; set; } = default!;
 
     protected List<CourseDto> MyCourses { get; set; } = new();
     protected bool IsTeacher { get; set; }
     protected Guid? CurrentTeacherId { get; set; }
-    
-    // Modal
+
+    // Modals
     private Modal CourseDetailsModal { get; set; } = null!;
+    private Modal UpdateStatusModal { get; set; } = null!;
+
+    // Selected Course
     private CourseDto? SelectedCourse { get; set; }
+    private CourseDto? EditingCourse { get; set; }
+    private EnumCourseStatus NewStatus { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,16 +70,71 @@ public partial class TeacherMyCourses
             await HandleErrorAsync(ex);
         }
     }
-    
+
+    // Course Details Modal
     private async Task OpenCourseDetailsModal(CourseDto course)
     {
         SelectedCourse = course;
         await CourseDetailsModal.Show();
     }
-    
+
     private async Task CloseCourseDetailsModal()
     {
         await CourseDetailsModal.Hide();
         SelectedCourse = null;
+    }
+
+    // Update Status Modal
+    private async Task OpenUpdateStatusModal(CourseDto course)
+    {
+        EditingCourse = course;
+        NewStatus = course.Status;
+        await UpdateStatusModal.Show();
+    }
+
+    private async Task CloseUpdateStatusModal()
+    {
+        await UpdateStatusModal.Hide();
+        EditingCourse = null;
+    }
+
+    private async Task UpdateCourseStatusAsync()
+    {
+        if (EditingCourse == null) return;
+
+        try
+        {
+            var updateDto = new CreateUpdateCourseDto
+            {
+                Name = EditingCourse.Name,
+                Code = EditingCourse.Code,
+                Credits = EditingCourse.Credits,
+                Description = EditingCourse.Description,
+                // EditingCourse.TeacherId is non-nullable Guid in CourseDto
+                // so no need for null-coalescing; keep the existing teacher assignment
+                TeacherId = EditingCourse.TeacherId,
+                Status = NewStatus
+            };
+
+            await CourseAppService.UpdateAsync(EditingCourse.Id, updateDto);
+            await LoadMyCoursesAsync();
+            await UpdateStatusModal.Hide();
+            await Message.Success(L["SuccessfullyUpdated"]);
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync(ex);
+        }
+    }
+
+    // Navigation
+    private void NavigateToGrades(CourseDto course)
+    {
+        NavigationManager.NavigateTo($"/teacher/grades?courseId={course.Id}");
+    }
+
+    private void NavigateToAttendances(CourseDto course)
+    {
+        NavigationManager.NavigateTo($"/teacher/attendances?courseId={course.Id}");
     }
 }

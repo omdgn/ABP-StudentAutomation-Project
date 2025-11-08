@@ -32,9 +32,10 @@ public class TeacherMenuContributor : IMenuContributor
         // Check if user has any teacher-related permissions
         var hasCoursePermission = await context.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default);
         var hasGradePermission = await context.IsGrantedAsync(abp_obs_projectPermissions.Grades.Default);
+        var hasAttendancePermission = await context.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Default);
 
         // User must have at least one teacher permission
-        if (!hasCoursePermission && !hasGradePermission)
+        if (!hasCoursePermission && !hasGradePermission && !hasAttendancePermission)
         {
             return;
         }
@@ -77,15 +78,45 @@ public class TeacherMenuContributor : IMenuContributor
             )
         );
 
+        // Grades (optional, if teacher has Grades permission)
+        if (hasGradePermission)
+        {
+            context.Menu.Items.Insert(
+                3,
+                new ApplicationMenuItem(
+                    abp_obs_projectMenus.TeacherGrades,
+                    l["Menu:Grades"],
+                    "/teacher/grades",
+                    icon: "fas fa-star",
+                    order: 3
+                )
+            );
+        }
+
+        // Attendances (optional, if teacher has Attendances permission)
+        if (hasAttendancePermission)
+        {
+            context.Menu.Items.Insert(
+                4,
+                new ApplicationMenuItem(
+                    abp_obs_projectMenus.TeacherAttendances,
+                    l["Menu:Attendances"],
+                    "/teacher/attendances",
+                    icon: "fas fa-calendar-check",
+                    order: 4
+                )
+            );
+        }
+
         // Settings
         context.Menu.Items.Insert(
-            3,
+            5,
             new ApplicationMenuItem(
                 abp_obs_projectMenus.TeacherSettings,
                 l["Menu:Settings"],
                 "/teacher/settings",
                 icon: "fas fa-cog",
-                order: 3
+                order: 5
             )
         );
     }
