@@ -1,0 +1,20 @@
+using System;
+using Volo.Abp.Application.Dtos;
+
+namespace abp_obs_project.Attendances;
+
+/// <summary>
+/// Attendance data transfer object with student and course information
+/// </summary>
+public class AttendanceDto : AuditedEntityDto<Guid>
+{
+    public Guid StudentId { get; set; }
+    public Guid CourseId { get; set; }
+    public DateTime AttendanceDate { get; set; }
+    public bool IsPresent { get; set; }
+    public string? Remarks { get; set; }
+
+    // Navigation properties for display purposes
+    public string StudentName { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+}

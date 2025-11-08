@@ -1,0 +1,18 @@
+@page "/teachers"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Teachers
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(abp_obs_projectPermissions.Teachers.Default)]
+@inherits abp_obs_projectComponentBase
+
+<h3>
+    <i class="fas fa-chalkboard-teacher me-2"></i>
+    @L["Teachers"]
+</h3>
+
+<Card>
+    <CardBody>
+        <p>Teacher management page - Öğretmen Yönetimi</p>
+        <p>Features: List, Create, Update, Delete, Assign Courses</p>
+    </CardBody>
+</Card>

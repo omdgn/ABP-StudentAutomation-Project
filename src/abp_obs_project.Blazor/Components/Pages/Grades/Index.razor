@@ -1,0 +1,18 @@
+@page "/grades"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Grades
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(abp_obs_projectPermissions.Grades.Default)]
+@inherits abp_obs_projectComponentBase
+
+<h3>
+    <i class="fas fa-graduation-cap me-2"></i>
+    @L["Grades"]
+</h3>
+
+<Card>
+    <CardBody>
+        <p>Grade management page - Not Yönetimi</p>
+        <p>Features: View Grades, Add Grade (Teacher), Grade Report, Average Calculation</p>
+    </CardBody>
+</Card>

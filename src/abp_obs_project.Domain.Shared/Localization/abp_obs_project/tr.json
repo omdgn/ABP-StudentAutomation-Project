@@ -1,0 +1,48 @@
+{
+  "culture": "tr",
+  "texts": {
+    "AppName": "abp_obs_project",
+    "Menu:Home": "Ana sayfa",
+    "Menu:Students": "Öğrenciler",
+    "Menu:Teachers": "Öğretmenler",
+    "Menu:Courses": "Dersler",
+    "Menu:Grades": "Notlar",
+    "Menu:Attendances": "Devamsızlıklar",
+    "Welcome": "Hoşgeldiniz",
+    "LongWelcomeMessage": "Uygulamaya hoşgeldiniz. Bu, ABP framework'ü üzerine bina edilmiş bir başlangıç projesidir. Daha fazla bilgi için abp.io adresini ziyaret edebilirsiniz.",
+
+    "Permission:ObsManagement": "Öğrenci Otomasyon Sistemi",
+
+    "Permission:Students": "Öğrenci Yönetimi",
+    "Permission:Students.Create": "Öğrenci Oluştur",
+    "Permission:Students.Edit": "Öğrenci Düzenle",
+    "Permission:Students.Delete": "Öğrenci Sil",
+    "Permission:Students.ViewAll": "Tüm Öğrencileri Görüntüle",
+
+    "Permission:Teachers": "Öğretmen Yönetimi",
+    "Permission:Teachers.Create": "Öğretmen Oluştur",
+    "Permission:Teachers.Edit": "Öğretmen Düzenle",
+    "Permission:Teachers.Delete": "Öğretmen Sil",
+    "Permission:Teachers.ViewAll": "Tüm Öğretmenleri Görüntüle",
+
+    "Permission:Courses": "Ders Yönetimi",
+    "Permission:Courses.Create": "Ders Oluştur",
+    "Permission:Courses.Edit": "Ders Düzenle",
+    "Permission:Courses.Delete": "Ders Sil",
+    "Permission:Courses.ViewAll": "Tüm Dersleri Görüntüle",
+    "Permission:Courses.ManageStudents": "Ders Öğrencilerini Yönet",
+    "Permission:Courses.UpdateStatus": "Ders Durumunu Güncelle",
+
+    "Permission:Grades": "Not Yönetimi",
+    "Permission:Grades.Create": "Not Gir",
+    "Permission:Grades.Edit": "Not Düzenle",
+    "Permission:Grades.Delete": "Not Sil",
+    "Permission:Grades.ViewAll": "Tüm Notları Görüntüle",
+
+    "Permission:Attendances": "Devamsızlık Yönetimi",
+    "Permission:Attendances.Create": "Devamsızlık Kaydet",
+    "Permission:Attendances.Edit": "Devamsızlık Düzenle",
+    "Permission:Attendances.Delete": "Devamsızlık Sil",
+    "Permission:Attendances.ViewAll": "Tüm Devamsızlıkları Görüntüle"
+  }
+}

@@ -1,0 +1,102 @@
+version: '3.8'
+
+networks:
+  sas-network:
+    name: sas-network
+    driver: bridge
+
+volumes:
+  sas_postgres_data:
+  sas_pgadmin_data:
+  sas_redis_data:
+  sas_rabbitmq_data:
+  sas_elasticsearch_data:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sas_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: myPassw0rd
+      POSTGRES_DB: abp_obs_db
+      TZ: Europe/Istanbul
+    command: postgres -c 'max_connections=250'
+    ports:
+      - "5435:5432"
+    volumes:
+      - sas_postgres_data:/var/lib/postgresql/data
+    networks:
+      - sas-network
+
+  pgadmin4:
+    image: dpage/pgadmin4
+    container_name: sas_pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pusulaobs.com
+      PGADMIN_DEFAULT_PASSWORD: myPassw0rd
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    volumes:
+      - sas_pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - sas-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sas_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - sas_redis_data:/data
+    networks:
+      - sas-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: sas_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - sas_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - sas-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: sas_elasticsearch
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.watcher.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - sas_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - sas-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: sas_kibana
+    restart: always
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - XPACK_MONITORING_ENABLED=true
+      - XPACK_MONITORING_COLLECTION_ENABLED=true
+    ports:
+      - "5601:5601"
+    networks:
+      - sas-network

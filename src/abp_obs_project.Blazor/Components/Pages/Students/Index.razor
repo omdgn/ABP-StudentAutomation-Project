@@ -1,0 +1,330 @@
+@page "/students"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Students
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(abp_obs_projectPermissions.Students.Default)]
+@inherits abp_obs_projectComponentBase
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between align-items-center">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>
+                    <i class="fas fa-user-graduate me-2"></i>
+                    @L["Students"]
+                </h2>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if (CanCreateStudent)
+                {
+                    <Button Color="Color.Primary" Clicked="OpenCreateModalAsync">
+                        <i class="fas fa-plus me-1"></i>
+                        @L["NewStudent"]
+                    </Button>
+                }
+            </Column>
+        </Row>
+    </CardHeader>
+
+    <CardBody>
+        @* SEARCH BAR *@
+        <Row Class="mb-3">
+            <Column>
+                <TextEdit
+                    Text="@SearchText"
+                    TextChanged="OnSearchChanged"
+                    Placeholder="@L["SearchByNameOrEmail"]">
+                    <Feedback>
+                        <ValidationNone/>
+                    </Feedback>
+                </TextEdit>
+            </Column>
+        </Row>
+
+        @* DATA GRID *@
+        <DataGrid TItem="StudentDto"
+                  Data="StudentList"
+                  ReadData="GetStudentsAsync"
+                  TotalItems="TotalCount"
+                  PageSize="PageSize"
+                  ShowPager="true"
+                  Responsive="true"
+                  Striped="true"
+                  Hoverable="true"
+                  Bordered="true">
+
+            <DataGridColumns>
+                @* FULL NAME *@
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.FirstName)"
+                                Caption="@L["FullName"]">
+                    <DisplayTemplate>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar avatar-sm bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center">
+                                <span>@GetInitials(context)</span>
+                            </div>
+                            <div>
+                                <strong>@context.FirstName @context.LastName</strong>
+                            </div>
+                        </div>
+                    </DisplayTemplate>
+                </DataGridColumn>
+
+                @* EMAIL *@
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.Email)"
+                                Caption="@L["Email"]">
+                    <DisplayTemplate>
+                        <i class="fas fa-envelope me-2 text-muted"></i>
+                        @context.Email
+                    </DisplayTemplate>
+                </DataGridColumn>
+
+                @* PHONE *@
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.Phone)"
+                                Caption="@L["Phone"]">
+                    <DisplayTemplate>
+                        @if (!string.IsNullOrEmpty(context.Phone))
+                        {
+                            <i class="fas fa-phone me-2 text-muted"></i>
+                            @context.Phone
+                        }
+                    </DisplayTemplate>
+                </DataGridColumn>
+
+                @* TEACHER *@
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.TeacherName)"
+                                Caption="@L["Teacher"]">
+                    <DisplayTemplate>
+                        @if (!string.IsNullOrEmpty(context.TeacherName))
+                        {
+                            <Badge Color="Color.Info">
+                                <i class="fas fa-chalkboard-teacher me-1"></i>
+                                @context.TeacherName
+                            </Badge>
+                        }
+                        else
+                        {
+                            <Badge Color="Color.Secondary">
+                                @L["NoTeacher"]
+                            </Badge>
+                        }
+                    </DisplayTemplate>
+                </DataGridColumn>
+
+                @* ENROLLMENT DATE *@
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.EnrollmentDate)"
+                                Caption="@L["EnrollmentDate"]">
+                    <DisplayTemplate>
+                        @context.EnrollmentDate.ToShortDateString()
+                    </DisplayTemplate>
+                </DataGridColumn>
+
+                @* ACTIONS *@
+                <DataGridColumn TItem="StudentDto" Caption="@L["Actions"]" Sortable="false">
+                    <DisplayTemplate>
+                        <Buttons>
+                            @if (CanEditStudent)
+                            {
+                                <Button Size="Size.Small"
+                                        Color="Color.Primary"
+                                        Clicked="@(() => OpenEditModalAsync(context))">
+                                    <i class="fas fa-edit"></i>
+                                </Button>
+                            }
+                            @if (CanDeleteStudent)
+                            {
+                                <Button Size="Size.Small"
+                                        Color="Color.Danger"
+                                        Clicked="@(() => DeleteStudentAsync(context))">
+                                    <i class="fas fa-trash"></i>
+                                </Button>
+                            }
+                        </Buttons>
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+@* ======================================== *@
+@* STUDENT MODAL (CREATE / EDIT)           *@
+@* ======================================== *@
+
+<Modal @ref="StudentModal">
+    <ModalContent Centered="true" Size="ModalSize.Large">
+        <ModalHeader>
+            <ModalTitle>
+                @if (EditingStudentId == null)
+                {
+                    <i class="fas fa-user-plus me-2"></i>
+                    @L["NewStudent"]
+                }
+                else
+                {
+                    <i class="fas fa-user-edit me-2"></i>
+                    @L["EditStudent"]
+                }
+            </ModalTitle>
+            <CloseButton />
+        </ModalHeader>
+
+        <ModalBody>
+            <Validations @ref="StudentValidationsRef" Mode="ValidationMode.Manual">
+                <Row>
+                    @* FIRST NAME *@
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Validation>
+                            <Field>
+                                <FieldLabel>@L["FirstName"] *</FieldLabel>
+                                <TextEdit @bind-Text="NewStudent.FirstName"
+                                          Placeholder="@L["EnterFirstName"]">
+                                    <Feedback>
+                                        <ValidationError/>
+                                    </Feedback>
+                                </TextEdit>
+                            </Field>
+                        </Validation>
+                    </Column>
+
+                    @* LAST NAME *@
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Validation>
+                            <Field>
+                                <FieldLabel>@L["LastName"] *</FieldLabel>
+                                <TextEdit @bind-Text="NewStudent.LastName"
+                                          Placeholder="@L["EnterLastName"]">
+                                    <Feedback>
+                                        <ValidationError/>
+                                    </Feedback>
+                                </TextEdit>
+                            </Field>
+                        </Validation>
+                    </Column>
+                </Row>
+
+                <Row>
+                    @* EMAIL *@
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Validation>
+                            <Field>
+                                <FieldLabel>@L["Email"] *</FieldLabel>
+                                <TextEdit @bind-Text="NewStudent.Email"
+                                          Role="TextRole.Email"
+                                          Placeholder="student@example.com">
+                                    <Feedback>
+                                        <ValidationError/>
+                                    </Feedback>
+                                </TextEdit>
+                            </Field>
+                        </Validation>
+                    </Column>
+
+                    @* PHONE *@
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Validation>
+                            <Field>
+                                <FieldLabel>@L["Phone"]</FieldLabel>
+                                <TextEdit @bind-Text="NewStudent.Phone"
+                                          Role="TextRole.Telephone"
+                                          Placeholder="+90 5xx xxx xx xx">
+                                    <Feedback>
+                                        <ValidationError/>
+                                    </Feedback>
+                                </TextEdit>
+                            </Field>
+                        </Validation>
+                    </Column>
+                </Row>
+
+                <Row>
+                    @* BIRTH DATE *@
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Validation>
+                            <Field>
+                                <FieldLabel>@L["BirthDate"] *</FieldLabel>
+                                <DateEdit TValue="DateTime" @bind-Date="NewStudent.BirthDate">
+                                    <Feedback>
+                                        <ValidationError/>
+                                    </Feedback>
+                                </DateEdit>
+                            </Field>
+                        </Validation>
+                    </Column>
+
+                    @* ENROLLMENT DATE *@
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Validation>
+                            <Field>
+                                <FieldLabel>@L["EnrollmentDate"] *</FieldLabel>
+                                <DateEdit TValue="DateTime" @bind-Date="NewStudent.EnrollmentDate">
+                                    <Feedback>
+                                        <ValidationError/>
+                                    </Feedback>
+                                </DateEdit>
+                            </Field>
+                        </Validation>
+                    </Column>
+                </Row>
+
+                <Row>
+                    @* TEACHER LOOKUP *@
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>
+                                <i class="fas fa-chalkboard-teacher me-2"></i>
+                                @L["AdvisorTeacher"]
+                            </FieldLabel>
+                            <Select TValue="Guid?" @bind-SelectedValue="NewStudent.TeacherId">
+                                <SelectItem TValue="Guid?" Value="null">@L["SelectTeacher"]</SelectItem>
+                                @foreach (var teacher in TeacherList)
+                                {
+                                    <SelectItem TValue="Guid?" Value="teacher.Id">
+                                        @teacher.FullName
+                                    </SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                </Row>
+
+                <Row>
+                    @* ADDRESS *@
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Address"]</FieldLabel>
+                            <MemoEdit @bind-Text="NewStudent.Address"
+                                      Rows="3"
+                                      Placeholder="@L["EnterAddress"]">
+                            </MemoEdit>
+                        </Field>
+                    </Column>
+                </Row>
+            </Validations>
+        </ModalBody>
+
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseStudentModalAsync">
+                <i class="fas fa-times me-1"></i>
+                @L["Cancel"]
+            </Button>
+            <Button Color="Color.Primary" Clicked="CreateOrUpdateStudentAsync">
+                <i class="fas fa-save me-1"></i>
+                @L["Save"]
+            </Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+@code {
+    private string GetInitials(StudentDto student)
+    {
+        var firstInitial = !string.IsNullOrEmpty(student.FirstName) ? student.FirstName[0] : '?';
+        var lastInitial = !string.IsNullOrEmpty(student.LastName) ? student.LastName[0] : '?';
+        return $"{firstInitial}{lastInitial}".ToUpper();
+    }
+}

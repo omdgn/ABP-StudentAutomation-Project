@@ -1,0 +1,187 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using abp_obs_project.Courses;
+using abp_obs_project.Events;
+using abp_obs_project.Permissions;
+using abp_obs_project.Students;
+using Microsoft.AspNetCore.Authorization;
+using Volo.Abp.Application.Dtos;
+using Volo.Abp.Application.Services;
+using Volo.Abp.EventBus.Distributed;
+
+namespace abp_obs_project.Grades;
+
+/// <summary>
+/// Application service for Grade operations
+/// Demonstrates multi-entity navigation (Grade -> Student + Course)
+/// Shows transaction management and business rule enforcement
+/// </summary>
+[Authorize(abp_obs_projectPermissions.Grades.Default)]
+public class GradeAppService : ApplicationService, IGradeAppService
+{
+    private readonly IGradeRepository _gradeRepository;
+    private readonly GradeManager _gradeManager;
+    private readonly IStudentRepository _studentRepository;
+    private readonly ICourseRepository _courseRepository;
+    private readonly IDistributedEventBus _distributedEventBus;
+
+    public GradeAppService(
+        IGradeRepository gradeRepository,
+        GradeManager gradeManager,
+        IStudentRepository studentRepository,
+        ICourseRepository courseRepository,
+        IDistributedEventBus distributedEventBus)
+    {
+        _gradeRepository = gradeRepository;
+        _gradeManager = gradeManager;
+        _studentRepository = studentRepository;
+        _courseRepository = courseRepository;
+        _distributedEventBus = distributedEventBus;
+    }
+
+    /// <summary>
+    /// Gets a paginated and filtered list of grades with student and course information
+    /// Uses GetListWithNavigationPropertiesAsync for efficient eager loading
+    /// </summary>
+    [Authorize(abp_obs_projectPermissions.Grades.ViewAll)]
+    public virtual async Task<PagedResultDto<GradeDto>> GetListAsync(GetGradesInput input)
+    {
+        var totalCount = await _gradeRepository.GetCountAsync(
+            input.FilterText,
+            input.StudentId,
+            input.CourseId,
+            input.GradeValueMin,
+            input.GradeValueMax,
+            input.Status
+        );
+
+        var items = await _gradeRepository.GetListWithNavigationPropertiesAsync(
+            input.FilterText,
+            input.StudentId,
+            input.CourseId,
+            input.GradeValueMin,
+            input.GradeValueMax,
+            input.Status,
+            input.Sorting,
+            input.MaxResultCount,
+            input.SkipCount
+        );
+
+        // Map grades with student and course information
+        return new PagedResultDto<GradeDto>
+        {
+            TotalCount = totalCount,
+            Items = items.Select(item =>
+            {
+                var dto = ObjectMapper.Map<Grade, GradeDto>(item.Grade);
+                dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";
+                dto.CourseName = item.Course.Name;
+                return dto;
+            }).ToList()
+        };
+    }
+
+    /// <summary>
+    /// Gets a single grade by ID with student and course information
+    /// </summary>
+    public virtual async Task<GradeDto> GetAsync(Guid id)
+    {
+        var gradeWithNavigation = await _gradeRepository.GetWithNavigationPropertiesAsync(id);
+
+        var dto = ObjectMapper.Map<Grade, GradeDto>(gradeWithNavigation.Grade);
+        dto.StudentName = $"{gradeWithNavigation.Student.FirstName} {gradeWithNavigation.Student.LastName}";
+        dto.CourseName = gradeWithNavigation.Course.Name;
+
+        return dto;
+    }
+
+    /// <summary>
+    /// Creates a new grade using domain manager for business rules
+    /// GradeManager validates:
+    /// - Student existence
+    /// - Course existence
+    /// - No duplicate grade for same student-course
+    /// </summary>
+    [Authorize(abp_obs_projectPermissions.Grades.Create)]
+    public virtual async Task<GradeDto> CreateAsync(CreateUpdateGradeDto input)
+    {
+        var grade = await _gradeManager.CreateAsync(
+            input.StudentId,
+            input.CourseId,
+            input.GradeValue,
+            input.Comments
+        );
+
+        // Get student and course info for event
+        var student = await _studentRepository.GetAsync(grade.StudentId);
+        var course = await _courseRepository.GetAsync(grade.CourseId);
+
+        // Publish distributed event
+        await _distributedEventBus.PublishAsync(new GradeCreatedEto
+        {
+            GradeId = grade.Id,
+            StudentId = grade.StudentId,
+            CourseId = grade.CourseId,
+            GradeValue = grade.GradeValue,
+            Status = grade.Status,
+            GradedAt = grade.GradedAt ?? Clock.Now,
+            StudentEmail = student.Email,
+            StudentName = $"{student.FirstName} {student.LastName}",
+            CourseName = course.Name
+        });
+
+        return await MapGradeToDtoAsync(grade);
+    }
+
+    /// <summary>
+    /// Updates an existing grade using domain manager for business rules
+    /// </summary>
+    [Authorize(abp_obs_projectPermissions.Grades.Edit)]
+    public virtual async Task<GradeDto> UpdateAsync(Guid id, CreateUpdateGradeDto input)
+    {
+        var grade = await _gradeManager.UpdateAsync(
+            id,
+            input.StudentId,
+            input.CourseId,
+            input.GradeValue,
+            input.Comments
+        );
+
+        return await MapGradeToDtoAsync(grade);
+    }
+
+    /// <summary>
+    /// Deletes a grade
+    /// </summary>
+    [Authorize(abp_obs_projectPermissions.Grades.Delete)]
+    public virtual async Task DeleteAsync(Guid id)
+    {
+        await _gradeRepository.DeleteAsync(id);
+    }
+
+    /// <summary>
+    /// Gets average grade for a specific student
+    /// Demonstrates aggregate query pattern
+    /// </summary>
+    public virtual async Task<double> GetAverageGradeByStudentAsync(Guid studentId)
+    {
+        return await _gradeRepository.GetAverageGradeByStudentIdAsync(studentId);
+    }
+
+    /// <summary>
+    /// Helper method to map grade to DTO with student and course information
+    /// </summary>
+    private async Task<GradeDto> MapGradeToDtoAsync(Grade grade)
+    {
+        var dto = ObjectMapper.Map<Grade, GradeDto>(grade);
+
+        var student = await _studentRepository.GetAsync(grade.StudentId);
+        var course = await _courseRepository.GetAsync(grade.CourseId);
+
+        dto.StudentName = $"{student.FirstName} {student.LastName}";
+        dto.CourseName = course.Name;
+
+        return dto;
+    }
+}
