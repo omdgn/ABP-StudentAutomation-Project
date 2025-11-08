@@ -12,8 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using abp_obs_project.Blazor.Components;
 using abp_obs_project.Blazor.Menus;
-using abp_obs_project.Blazor.Services.Abstractions;
-using abp_obs_project.Blazor.Services.Implementations;
+using abp_obs_project.Blazor.Menus.Admin;
 using abp_obs_project.EntityFrameworkCore;
 using abp_obs_project.Localization;
 using abp_obs_project.MultiTenancy;
@@ -219,7 +218,8 @@ public class abp_obs_projectBlazorModule : AbpModule
     {
         Configure<AbpNavigationOptions>(options =>
         {
-            options.MenuContributors.Add(new abp_obs_projectMenuContributor());
+            options.MenuContributors.Add(new AdminMenuContributor());
+            options.MenuContributors.Add(new Menus.Teacher.TeacherMenuContributor());
         });
     }
 
@@ -249,33 +249,7 @@ public class abp_obs_projectBlazorModule : AbpModule
 
     private void ConfigureUiServices(ServiceConfigurationContext context)
     {
-        // ========================================
-        // UI SERVICE LAYER REGISTRATION
-        // ========================================
-        // STUDENT AUTOMATION SYSTEM (Öğrenci Otomasyon Sistemi)
-        //
-        // Abstraction layer between Blazor components and Application services
-        // Handles: error management, logging, toast notifications, caching
-        //
-        // Architecture:
-        // Blazor Component → UI Service → AppService → Domain Service → Repository
-        //
-        // Benefits:
-        // ✓ Separation of concerns (UI logic vs Business logic)
-        // ✓ Centralized error handling and user feedback
-        // ✓ Easier testing and mocking
-        // ✓ Future-proof for caching, loading states, etc.
-        // ========================================
-
-        // Student Automation System Entity UI Services
-        context.Services.AddTransient<IStudentUIService, StudentUIService>();
-        context.Services.AddTransient<ITeacherUIService, TeacherUIService>();
-        context.Services.AddTransient<ICourseUIService, CourseUIService>();
-        context.Services.AddTransient<IGradeUIService, GradeUIService>();
-        context.Services.AddTransient<IAttendanceUIService, AttendanceUIService>();
-
-        // Note: Services are also auto-registered via ITransientDependency,
-        // but explicit registration provides better documentation and IntelliSense
+        // UI Services can be registered here if needed
     }
 
     private void ConfigureHealthChecks(ServiceConfigurationContext context)

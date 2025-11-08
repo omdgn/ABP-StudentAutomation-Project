@@ -34,9 +34,50 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
     {
         using var uow = _unitOfWorkManager.Begin(requiresNew: true, isTransactional: true);
 
-        // Admin Role
+        // Admin Role (custom "Admin")
         await CreateRoleWithPermissionsAsync(
             "Admin",
+            new[]
+            {
+                // Students
+                "abp_obs_project.Students",
+                "abp_obs_project.Students.ViewAll",
+                "abp_obs_project.Students.Create",
+                "abp_obs_project.Students.Edit",
+                "abp_obs_project.Students.Delete",
+
+                // Teachers
+                "abp_obs_project.Teachers",
+                "abp_obs_project.Teachers.ViewAll",
+                "abp_obs_project.Teachers.Create",
+                "abp_obs_project.Teachers.Edit",
+                "abp_obs_project.Teachers.Delete",
+
+                // Courses
+                "abp_obs_project.Courses",
+                "abp_obs_project.Courses.ViewAll",
+                "abp_obs_project.Courses.Create",
+                "abp_obs_project.Courses.Edit",
+                "abp_obs_project.Courses.Delete",
+
+                // Grades
+                "abp_obs_project.Grades",
+                "abp_obs_project.Grades.ViewAll",
+                "abp_obs_project.Grades.Create",
+                "abp_obs_project.Grades.Edit",
+                "abp_obs_project.Grades.Delete",
+
+                // Attendances
+                "abp_obs_project.Attendances",
+                "abp_obs_project.Attendances.ViewAll",
+                "abp_obs_project.Attendances.Create",
+                "abp_obs_project.Attendances.Edit",
+                "abp_obs_project.Attendances.Delete"
+            });
+
+        // Also grant the same permissions to the built-in 'admin' role if it exists
+        await GrantPermissionsToExistingRoleAsync(
+            "admin",
             new[]
             {
                 // Students
@@ -80,13 +121,14 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
             "Teacher",
             new[]
             {
-                // Students - Sadece görüntüleme
+                // Students - Teacher can create and edit students
                 "abp_obs_project.Students",
                 "abp_obs_project.Students.ViewAll",
+                "abp_obs_project.Students.Create",
+                "abp_obs_project.Students.Edit",
 
-                // Courses - Görüntüleme ve düzenleme
+                // Courses - Görüntüleme ve düzenleme (ViewAll YOK - sadece kendi derslerini görsün)
                 "abp_obs_project.Courses",
-                "abp_obs_project.Courses.ViewAll",
                 "abp_obs_project.Courses.Edit",
 
                 // Grades - Tam yetki
@@ -112,17 +154,14 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
                 // Students - Sadece kendi bilgilerini görüntüleme
                 "abp_obs_project.Students",
 
-                // Courses - Sadece görüntüleme
+                // Courses - Sadece kayıtlı olduğu dersleri görüntüleme (ViewAll YOK)
                 "abp_obs_project.Courses",
-                "abp_obs_project.Courses.ViewAll",
 
                 // Grades - Sadece kendi notlarını görüntüleme
                 "abp_obs_project.Grades",
-                "abp_obs_project.Grades.ViewAll",
 
                 // Attendances - Sadece kendi devamsızlıklarını görüntüleme
-                "abp_obs_project.Attendances",
-                "abp_obs_project.Attendances.ViewAll"
+                "abp_obs_project.Attendances"
             });
 
         await uow.CompleteAsync();
@@ -151,6 +190,25 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
         }
 
         // Permission'ları ata
+        foreach (var permission in permissions)
+        {
+            await _permissionManager.SetAsync(
+                permission,
+                RolePermissionValueProvider.ProviderName,
+                existingRole.Name,
+                true
+            );
+        }
+    }
+
+    private async Task GrantPermissionsToExistingRoleAsync(string roleName, string[] permissions)
+    {
+        var existingRole = await _roleRepository.FindByNormalizedNameAsync(roleName.ToUpperInvariant());
+        if (existingRole == null)
+        {
+            return;
+        }
+
         foreach (var permission in permissions)
         {
             await _permissionManager.SetAsync(

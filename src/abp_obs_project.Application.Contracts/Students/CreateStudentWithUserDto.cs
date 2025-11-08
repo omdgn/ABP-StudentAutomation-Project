@@ -3,8 +3,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace abp_obs_project.Students;
 
-public class CreateUpdateStudentDto
+/// <summary>
+/// DTO for creating a student along with their identity user account
+/// </summary>
+public class CreateStudentWithUserDto
 {
+    // Student Information
     [Required]
     [StringLength(StudentConsts.MaxFirstNameLength, MinimumLength = StudentConsts.MinFirstNameLength)]
     public string FirstName { get; set; } = string.Empty;
@@ -32,9 +36,18 @@ public class CreateUpdateStudentDto
     [StringLength(StudentConsts.MaxPhoneLength)]
     public string? Phone { get; set; }
 
-    // Enrollment & Teacher
     [Required]
     public DateTime EnrollmentDate { get; set; }
 
     public Guid? TeacherId { get; set; }
+
+    // Identity User Information
+    [Required]
+    [StringLength(256)]
+    public string UserName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(256)]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
 }

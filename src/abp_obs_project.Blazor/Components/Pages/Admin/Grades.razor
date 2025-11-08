@@ -1,0 +1,224 @@
+@page "/admin/grades"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Grades
+@using abp_obs_project.Students
+@using abp_obs_project.Courses
+@using Volo.Abp.AspNetCore.Components.Web
+@using Volo.Abp.Application.Dtos
+@inherits abp_obs_projectComponentBase
+@inject IGradeAppService GradeAppService
+@inject IStudentAppService StudentAppService
+@inject ICourseAppService CourseAppService
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>
+                    <i class="fas fa-star me-2"></i>@L["Grades"]
+                </h2>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if (CanCreateGrade)
+                {
+                    <Button Color="Color.Primary" Clicked="OpenCreateModalAsync">
+                        <i class="fa fa-plus me-1"></i>@L["NewGrade"]
+                    </Button>
+                }
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        <!-- Filters -->
+        <Row Class="mb-3">
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Student"]</FieldLabel>
+                    <Select TValue="Guid?" SelectedValue="@FilterStudentId" SelectedValueChanged="OnStudentFilterChanged">
+                        <SelectItem TValue="Guid?" Value="null">@L["All"]</SelectItem>
+                        @foreach (var student in AllStudents)
+                        {
+                            <SelectItem TValue="Guid?" Value="@student.Id">@student.FirstName @student.LastName (@student.StudentNumber)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Course"]</FieldLabel>
+                    <Select TValue="Guid?" SelectedValue="@FilterCourseId" SelectedValueChanged="OnCourseFilterChanged">
+                        <SelectItem TValue="Guid?" Value="null">@L["All"]</SelectItem>
+                        @foreach (var course in AllCourses)
+                        {
+                            <SelectItem TValue="Guid?" Value="@course.Id">@course.Name (@course.Code)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Status"]</FieldLabel>
+                    <Select TValue="EnumGradeStatus?" SelectedValue="@FilterStatus" SelectedValueChanged="OnStatusFilterChanged">
+                        <SelectItem TValue="EnumGradeStatus?" Value="null">@L["All"]</SelectItem>
+                        <SelectItem TValue="EnumGradeStatus?" Value="EnumGradeStatus.Incomplete">@L["Enum:GradeStatus.Incomplete"]</SelectItem>
+                        <SelectItem TValue="EnumGradeStatus?" Value="EnumGradeStatus.Passed">@L["Enum:GradeStatus.Passed"]</SelectItem>
+                        <SelectItem TValue="EnumGradeStatus?" Value="EnumGradeStatus.Failed">@L["Enum:GradeStatus.Failed"]</SelectItem>
+                    </Select>
+                </Field>
+            </Column>
+        </Row>
+
+        <DataGrid TItem="GradeDto"
+                  Data="GradeList"
+                  ReadData="OnDataGridReadAsync"
+                  TotalItems="TotalCount"
+                  ShowPager="true"
+                  PageSize="PageSize"
+                  CurrentPage="CurrentPage"
+                  Responsive="true">
+            <DataGridColumns>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.StudentName)"
+                                Caption="@L["Student"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.CourseName)"
+                                Caption="@L["Course"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.GradeValue)"
+                                Caption="@L["Grade"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.Status)"
+                                Caption="@L["Status"]">
+                    <DisplayTemplate>
+                        @L[$"Enum:GradeStatus.{context.Status}"]
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.Comments)"
+                                Caption="@L["Comments"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        @(string.IsNullOrWhiteSpace(context.Comments) ? "-" : context.Comments)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.GradedAt)"
+                                Caption="@L["GradedAt"]">
+                    <DisplayTemplate>
+                        @(context.GradedAt?.ToShortDateString() ?? "-")
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="GradeDto"
+                                Field="@nameof(GradeDto.Id)"
+                                Caption="@L["Actions"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        @if (CanEditGrade)
+                        {
+                            <Button Color="Color.Primary" Size="Size.Small" Clicked="() => OpenEditModalAsync(context)">
+                                <i class="fas fa-edit"></i>
+                            </Button>
+                        }
+                        @if (CanDeleteGrade)
+                        {
+                            <Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteGradeAsync(context)">
+                                <i class="fas fa-trash"></i>
+                            </Button>
+                        }
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+<!-- Create Modal -->
+<Modal @ref="CreateModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <ModalHeader>
+            <ModalTitle>@L["NewGrade"]</ModalTitle>
+            <CloseButton Clicked="CloseCreateModalAsync" />
+        </ModalHeader>
+        <ModalBody>
+            <Field>
+                <FieldLabel>@L["Student"] *</FieldLabel>
+                <Select TValue="Guid" @bind-SelectedValue="@NewGrade.StudentId">
+                    <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectStudent"] --</SelectItem>
+                    @foreach (var student in AllStudents)
+                    {
+                        <SelectItem TValue="Guid" Value="@student.Id">@student.FirstName @student.LastName (@student.StudentNumber)</SelectItem>
+                    }
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Course"] *</FieldLabel>
+                <Select TValue="Guid" @bind-SelectedValue="@NewGrade.CourseId">
+                    <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectCourse"] --</SelectItem>
+                    @foreach (var course in AllCourses)
+                    {
+                        <SelectItem TValue="Guid" Value="@course.Id">@course.Name (@course.Code)</SelectItem>
+                    }
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Grade"] * (0-100)</FieldLabel>
+                <NumericEdit TValue="double" @bind-Value="@NewGrade.GradeValue" Min="0" Max="100" />
+            </Field>
+            <Field>
+                <FieldLabel>@L["Comments"]</FieldLabel>
+                <MemoEdit @bind-Text="@NewGrade.Comments" Rows="3" />
+            </Field>
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseCreateModalAsync">@L["Cancel"]</Button>
+            <Button Color="Color.Primary" Clicked="CreateGradeAsync">@L["Save"]</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<!-- Edit Modal -->
+<Modal @ref="EditModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <ModalHeader>
+            <ModalTitle>@L["EditGrade"]</ModalTitle>
+            <CloseButton Clicked="CloseEditModalAsync" />
+        </ModalHeader>
+        <ModalBody>
+            <Field>
+                <FieldLabel>@L["Student"] *</FieldLabel>
+                <Select TValue="Guid" @bind-SelectedValue="@EditingGrade.StudentId">
+                    <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectStudent"] --</SelectItem>
+                    @foreach (var student in AllStudents)
+                    {
+                        <SelectItem TValue="Guid" Value="@student.Id">@student.FirstName @student.LastName (@student.StudentNumber)</SelectItem>
+                    }
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Course"] *</FieldLabel>
+                <Select TValue="Guid" @bind-SelectedValue="@EditingGrade.CourseId">
+                    <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectCourse"] --</SelectItem>
+                    @foreach (var course in AllCourses)
+                    {
+                        <SelectItem TValue="Guid" Value="@course.Id">@course.Name (@course.Code)</SelectItem>
+                    }
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Grade"] * (0-100)</FieldLabel>
+                <NumericEdit TValue="double" @bind-Value="@EditingGrade.GradeValue" Min="0" Max="100" />
+            </Field>
+            <Field>
+                <FieldLabel>@L["Comments"]</FieldLabel>
+                <MemoEdit @bind-Text="@EditingGrade.Comments" Rows="3" />
+            </Field>
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseEditModalAsync">@L["Cancel"]</Button>
+            <Button Color="Color.Primary" Clicked="UpdateGradeAsync">@L["Save"]</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>

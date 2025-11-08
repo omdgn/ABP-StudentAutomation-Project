@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 
@@ -11,6 +12,8 @@ namespace abp_obs_project.Students;
 public interface IStudentAppService
     : ICrudAppService<StudentDto, Guid, GetStudentsInput, CreateUpdateStudentDto, CreateUpdateStudentDto>
 {
-    // Additional custom methods can be added here
-    // Example: Task<decimal> GetStudentAverageGradeAsync(Guid studentId);
+    /// <summary>
+    /// Creates a new student along with their identity user account for authentication
+    /// </summary>
+    Task<StudentDto> CreateStudentWithUserAsync(CreateStudentWithUserDto input);
 }

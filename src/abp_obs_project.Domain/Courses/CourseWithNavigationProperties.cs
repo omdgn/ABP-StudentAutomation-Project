@@ -9,5 +9,5 @@ namespace abp_obs_project.Courses;
 public class CourseWithNavigationProperties
 {
     public Course Course { get; set; } = null!;
-    public Teacher Teacher { get; set; } = null!;
+    public Teacher? Teacher { get; set; }
 }

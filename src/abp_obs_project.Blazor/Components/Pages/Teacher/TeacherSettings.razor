@@ -1,0 +1,90 @@
+@page "/teacher/settings"
+@using abp_obs_project.Permissions
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@attribute [Authorize]
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-cog me-2"></i>@L["Menu:Settings"]
+            </h1>
+        </div>
+    </div>
+
+    @if (IsTeacher)
+    {
+        <div class="row">
+            <div class="col-12 col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L["Settings:Profile"]</h5>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label">@L["Email"]</label>
+                                <input type="email" class="form-control" value="@CurrentUserEmail" disabled />
+                                <small class="text-muted">@L["Settings:EmailNotEditable"]</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">@L["Settings:Notifications"]</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="emailNotifications" checked />
+                                    <label class="form-check-label" for="emailNotifications">
+                                        @L["Settings:EmailNotifications"]
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="courseUpdates" checked />
+                                    <label class="form-check-label" for="courseUpdates">
+                                        @L["Settings:CourseUpdates"]
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">@L["Settings:Language"]</label>
+                                <select class="form-select">
+                                    <option value="en">English</option>
+                                    <option value="tr">Türkçe</option>
+                                </select>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" class="btn btn-primary" disabled>
+                                    <i class="fas fa-save me-1"></i>@L["Save"]
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L["Settings:ChangePassword"]</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            @L["Settings:ChangePasswordInfo"]
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @L["Dashboard:NoAccessMessage"]
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,245 @@
+@page "/admin/teachers"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Teachers
+@using Volo.Abp.AspNetCore.Components.Web
+@using Volo.Abp.Application.Dtos
+@inherits abp_obs_projectComponentBase
+@inject ITeacherAppService TeacherAppService
+@inject Volo.Abp.Identity.IIdentityUserAppService IdentityUserAppService
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>
+                    <i class="fas fa-chalkboard-teacher me-2"></i>@L["Teachers"]
+                </h2>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if (CanCreateTeacher)
+                {
+                    <Button Color="Color.Primary" Clicked="OpenCreateModalAsync">
+                        <i class="fa fa-plus me-1"></i>@L["NewTeacher"]
+                    </Button>
+                }
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        <!-- Search Box -->
+        <Row Class="mb-3">
+            <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["SearchTeachers"]</FieldLabel>
+                    <TextEdit Text="@Filter" TextChanged="OnSearchTextChanged" Placeholder="@L["SearchTeachers"]" Debounce="true" DebounceInterval="500">
+                        <Feedback>
+                            <div class="mt-2">
+                                @if (!string.IsNullOrWhiteSpace(Filter))
+                                {
+                                    <Button Color="Color.Secondary" Clicked="ClearSearchAsync" Size="Size.Small">
+                                        <i class="fa fa-times me-1"></i>@L["Clear"]
+                                    </Button>
+                                }
+                            </div>
+                        </Feedback>
+                    </TextEdit>
+                </Field>
+            </Column>
+        </Row>
+
+        <DataGrid TItem="TeacherDto"
+                  Data="TeacherList"
+                  ReadData="OnDataGridReadAsync"
+                  TotalItems="TotalCount"
+                  ShowPager="true"
+                  PageSize="PageSize"
+                  CurrentPage="CurrentPage"
+                  Responsive="true">
+            <DataGridColumns>
+                <DataGridColumn TItem="TeacherDto"
+                                Field="@nameof(TeacherDto.FirstName)"
+                                Caption="@L["FirstName"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="TeacherDto"
+                                Field="@nameof(TeacherDto.LastName)"
+                                Caption="@L["LastName"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="TeacherDto"
+                                Field="@nameof(TeacherDto.Email)"
+                                Caption="@L["Email"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="TeacherDto"
+                                Field="@nameof(TeacherDto.Department)"
+                                Caption="@L["Department"]">
+                    <DisplayTemplate>
+                        @(context.Department ?? "-")
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="TeacherDto"
+                                Field="@nameof(TeacherDto.PhoneNumber)"
+                                Caption="@L["Phone"]">
+                    <DisplayTemplate>
+                        @(context.PhoneNumber ?? "-")
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="TeacherDto"
+                                Field="@nameof(TeacherDto.Id)"
+                                Caption="@L["Actions"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        <Dropdown>
+                            <DropdownToggle Color="Color.Primary">
+                                <i class="fa fa-cog"></i> @L["Actions"]
+                            </DropdownToggle>
+                            <DropdownMenu>
+                                @if (CanEditTeacher)
+                                {
+                                    <DropdownItem Clicked="() => OpenEditModalAsync(context)">
+                                        <i class="fas fa-edit me-1"></i>@L["Edit"]
+                                    </DropdownItem>
+                                }
+                                @if (CanDeleteTeacher)
+                                {
+                                    <DropdownItem Clicked="() => DeleteTeacherAsync(context)">
+                                        <i class="fas fa-trash me-1"></i>@L["Delete"]
+                                    </DropdownItem>
+                                }
+                            </DropdownMenu>
+                        </Dropdown>
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+<!-- Create Modal -->
+<Modal @ref="CreateModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["NewTeacher"]</ModalTitle>
+                <CloseButton Clicked="CloseCreateModalAsync" />
+            </ModalHeader>
+            <ModalBody>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["FirstName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewTeacher.FirstName" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["LastName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewTeacher.LastName" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Email"] *</FieldLabel>
+                            <TextEdit Role="TextRole.Email" @bind-Text="@NewTeacher.Email" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Department"]</FieldLabel>
+                            <TextEdit @bind-Text="@NewTeacher.Department" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Phone"]</FieldLabel>
+                            <TextEdit @bind-Text="@NewTeacher.PhoneNumber" />
+                        </Field>
+                    </Column>
+                </Row>
+                <hr />
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["SystemUserInformation"]</FieldLabel>
+                            <Paragraph Class="text-muted small">@L["AUserWillBeCreatedForTeacher"]</Paragraph>
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["UserName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewTeacher.UserName" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Password"] *</FieldLabel>
+                            <TextEdit Role="TextRole.Password" @bind-Text="@NewTeacher.Password" />
+                        </Field>
+                    </Column>
+                </Row>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseCreateModalAsync">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="CreateTeacherAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>
+
+<!-- Edit Modal -->
+<Modal @ref="EditModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["Edit"] - @EditingTeacher.FirstName @EditingTeacher.LastName</ModalTitle>
+                <CloseButton Clicked="CloseEditModalAsync" />
+            </ModalHeader>
+            <ModalBody>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["FirstName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingTeacher.FirstName" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["LastName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingTeacher.LastName" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Email"] *</FieldLabel>
+                            <TextEdit Role="TextRole.Email" @bind-Text="@EditingTeacher.Email" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Department"]</FieldLabel>
+                            <TextEdit @bind-Text="@EditingTeacher.Department" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Phone"]</FieldLabel>
+                            <TextEdit @bind-Text="@EditingTeacher.PhoneNumber" />
+                        </Field>
+                    </Column>
+                </Row>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseEditModalAsync">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="UpdateTeacherAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>

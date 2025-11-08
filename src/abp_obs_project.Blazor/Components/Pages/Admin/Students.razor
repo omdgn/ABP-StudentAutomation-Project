@@ -1,0 +1,299 @@
+@page "/admin/students"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Students
+@using abp_obs_project.Teachers
+@using Volo.Abp.AspNetCore.Components.Web
+@using Volo.Abp.Application.Dtos
+@inherits abp_obs_projectComponentBase
+@inject IStudentAppService StudentAppService
+@inject ITeacherAppService TeacherAppService
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>
+                    <i class="fas fa-user-graduate me-2"></i>@L["Students"]
+                </h2>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if (CanCreateStudent)
+                {
+                    <Button Color="Color.Primary" Clicked="OpenCreateModalAsync">
+                        <i class="fa fa-plus me-1"></i>@L["NewStudent"]
+                    </Button>
+                }
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        <!-- Search Box -->
+        <Row Class="mb-3">
+            <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["SearchStudents"]</FieldLabel>
+                    <TextEdit Text="@Filter" TextChanged="OnSearchTextChanged" Placeholder="@L["SearchStudents"]" Debounce="true" DebounceInterval="500">
+                        <Feedback>
+                            <div class="mt-2">
+                                @if (!string.IsNullOrWhiteSpace(Filter))
+                                {
+                                    <Button Color="Color.Secondary" Clicked="ClearSearchAsync" Size="Size.Small">
+                                        <i class="fa fa-times me-1"></i>@L["Clear"]
+                                    </Button>
+                                }
+                            </div>
+                        </Feedback>
+                    </TextEdit>
+                </Field>
+            </Column>
+        </Row>
+
+        <DataGrid TItem="StudentDto"
+                  Data="StudentList"
+                  ReadData="OnDataGridReadAsync"
+                  TotalItems="TotalCount"
+                  ShowPager="true"
+                  PageSize="PageSize"
+                  CurrentPage="CurrentPage"
+                  Responsive="true">
+            <DataGridColumns>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.StudentNumber)"
+                                Caption="@L["StudentNumber"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.FirstName)"
+                                Caption="@L["FirstName"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.LastName)"
+                                Caption="@L["LastName"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.Email)"
+                                Caption="@L["Email"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.Gender)"
+                                Caption="@L["Gender"]">
+                    <DisplayTemplate>
+                        @L[$"Enum:Gender.{context.Gender}"]
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.BirthDate)"
+                                Caption="@L["BirthDate"]">
+                    <DisplayTemplate>
+                        @context.BirthDate.ToShortDateString()
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.TeacherName)"
+                                Caption="Teacher">
+                    <DisplayTemplate>
+                        @(context.TeacherName ?? "-")
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="StudentDto"
+                                Field="@nameof(StudentDto.Id)"
+                                Caption="@L["Actions"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        <Dropdown>
+                            <DropdownToggle Color="Color.Primary">
+                                <i class="fa fa-cog"></i> @L["Actions"]
+                            </DropdownToggle>
+                            <DropdownMenu>
+                                @if (CanEditStudent)
+                                {
+                                    <DropdownItem Clicked="() => OpenEditModalAsync(context)">
+                                        <i class="fas fa-edit me-1"></i>@L["Edit"]
+                                    </DropdownItem>
+                                }
+                                @if (CanDeleteStudent)
+                                {
+                                    <DropdownItem Clicked="() => DeleteStudentAsync(context)">
+                                        <i class="fas fa-trash me-1"></i>@L["Delete"]
+                                    </DropdownItem>
+                                }
+                            </DropdownMenu>
+                        </Dropdown>
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+<!-- Create Modal -->
+<Modal @ref="CreateModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["NewStudent"]</ModalTitle>
+                <CloseButton Clicked="CloseCreateModalAsync" />
+            </ModalHeader>
+            <ModalBody>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["FirstName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewStudent.FirstName" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["LastName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewStudent.LastName" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Email"] *</FieldLabel>
+                            <TextEdit Role="TextRole.Email" @bind-Text="@NewStudent.Email" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["StudentNumber"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewStudent.StudentNumber" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Gender"] *</FieldLabel>
+                            <Select TValue="EnumGender" @bind-SelectedValue="@NewStudent.Gender">
+                                @foreach (var gender in Enum.GetValues<EnumGender>())
+                                {
+                                    <SelectItem Value="@gender">@L[$"Enum:Gender.{gender}"]</SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["BirthDate"] *</FieldLabel>
+                            <DateEdit TValue="DateTime" @bind-Date="@NewStudent.BirthDate" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Phone"]</FieldLabel>
+                            <TextEdit @bind-Text="@NewStudent.Phone" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>Enrollment Date *</FieldLabel>
+                            <DateEdit TValue="DateTime" @bind-Date="@NewStudent.EnrollmentDate" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Divider Text="@L["LoginCredentials"]" />
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["UserName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewStudent.UserName" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Password"] *</FieldLabel>
+                            <TextEdit Role="TextRole.Password" @bind-Text="@NewStudent.Password" />
+                        </Field>
+                    </Column>
+                </Row>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseCreateModalAsync">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="CreateStudentAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>
+
+<!-- Edit Modal -->
+<Modal @ref="EditModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["Edit"] - @EditingStudent.StudentNumber</ModalTitle>
+                <CloseButton Clicked="CloseEditModalAsync" />
+            </ModalHeader>
+            <ModalBody>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["FirstName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingStudent.FirstName" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["LastName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingStudent.LastName" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Email"] *</FieldLabel>
+                            <TextEdit Role="TextRole.Email" @bind-Text="@EditingStudent.Email" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["StudentNumber"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingStudent.StudentNumber" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Gender"] *</FieldLabel>
+                            <Select TValue="EnumGender" @bind-SelectedValue="@EditingStudent.Gender">
+                                @foreach (var gender in Enum.GetValues<EnumGender>())
+                                {
+                                    <SelectItem Value="@gender">@L[$"Enum:Gender.{gender}"]</SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["BirthDate"] *</FieldLabel>
+                            <DateEdit TValue="DateTime" @bind-Date="@EditingStudent.BirthDate" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Phone"]</FieldLabel>
+                            <TextEdit @bind-Text="@EditingStudent.Phone" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>Enrollment Date *</FieldLabel>
+                            <DateEdit TValue="DateTime" @bind-Date="@EditingStudent.EnrollmentDate" />
+                        </Field>
+                    </Column>
+                </Row>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseEditModalAsync">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="UpdateStudentAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>

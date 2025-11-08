@@ -22,5 +22,4 @@ public static class StudentConsts
     public const int MinStudentNumberLength = 5;
 
     public const int MaxPhoneLength = 20;
-    public const int MaxAddressLength = 500;
 }

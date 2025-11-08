@@ -91,14 +91,25 @@ public class EfCoreTeacherRepository(IDbContextProvider<abp_obs_projectDbContext
         string? department = null)
     {
         return query
+            // Turkish character friendly search using ILIKE (PostgreSQL case-insensitive)
+            // "yılmaz" will match "Yılmaz", "YILMAZ", "yılmaz", etc.
             .WhereIf(!string.IsNullOrWhiteSpace(filterText), e =>
-                e.FirstName.Contains(filterText!) ||
-                e.LastName.Contains(filterText!) ||
-                e.Email.Contains(filterText!) ||
-                e.Department!.Contains(filterText!))
-            .WhereIf(!string.IsNullOrWhiteSpace(firstName), e => e.FirstName.Contains(firstName!))
-            .WhereIf(!string.IsNullOrWhiteSpace(lastName), e => e.LastName.Contains(lastName!))
-            .WhereIf(!string.IsNullOrWhiteSpace(email), e => e.Email.Contains(email!))
-            .WhereIf(!string.IsNullOrWhiteSpace(department), e => e.Department!.Contains(department!));
+                EF.Functions.ILike(EF.Functions.Collate(e.FirstName, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default")) ||
+                EF.Functions.ILike(EF.Functions.Collate(e.LastName, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default")) ||
+                EF.Functions.ILike(e.Email, $"%{filterText}%") ||
+                (e.Department != null && EF.Functions.ILike(EF.Functions.Collate(e.Department, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default"))))
+            .WhereIf(!string.IsNullOrWhiteSpace(firstName), e =>
+                EF.Functions.ILike(EF.Functions.Collate(e.FirstName, "default"),
+                    EF.Functions.Collate($"%{firstName}%", "default")))
+            .WhereIf(!string.IsNullOrWhiteSpace(lastName), e =>
+                EF.Functions.ILike(EF.Functions.Collate(e.LastName, "default"),
+                    EF.Functions.Collate($"%{lastName}%", "default")))
+            .WhereIf(!string.IsNullOrWhiteSpace(email), e => EF.Functions.ILike(e.Email, $"%{email}%"))
+            .WhereIf(!string.IsNullOrWhiteSpace(department), e =>
+                e.Department != null && EF.Functions.ILike(EF.Functions.Collate(e.Department, "default"),
+                    EF.Functions.Collate($"%{department}%", "default")));
     }
 }

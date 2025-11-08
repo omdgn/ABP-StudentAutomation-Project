@@ -1,0 +1,128 @@
+@page "/teacher/my-courses"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Courses
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@attribute [Authorize]
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>
+                    <i class="fas fa-book me-2"></i>@L["Menu:MyCourses"]
+                </h2>
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        @if (IsTeacher)
+        {
+            @if (MyCourses != null && MyCourses.Any())
+            {
+                <DataGrid TItem="CourseDto"
+                          Data="MyCourses"
+                          Responsive="true"
+                          ShowPager="false"
+                          Striped="true"
+                          Hoverable="true">
+                    <DataGridColumns>
+                        <DataGridColumn TItem="CourseDto"
+                                        Field="@nameof(CourseDto.Code)"
+                                        Caption="@L["CourseCode"]">
+                        </DataGridColumn>
+                        <DataGridColumn TItem="CourseDto"
+                                        Field="@nameof(CourseDto.Name)"
+                                        Caption="@L["CourseName"]">
+                        </DataGridColumn>
+                        <DataGridColumn TItem="CourseDto"
+                                        Field="@nameof(CourseDto.Credits)"
+                                        Caption="@L["Credits"]">
+                        </DataGridColumn>
+                        <DataGridColumn TItem="CourseDto"
+                                        Field="@nameof(CourseDto.Status)"
+                                        Caption="@L["Status"]">
+                            <DisplayTemplate>
+                                @L[$"Enum:CourseStatus.{context.Status}"]
+                            </DisplayTemplate>
+                        </DataGridColumn>
+                        <DataGridColumn TItem="CourseDto"
+                                        Field="@nameof(CourseDto.Id)"
+                                        Caption="@L["Actions"]"
+                                        Sortable="false">
+                            <DisplayTemplate>
+                                <Button Color="Color.Primary" Size="Size.Small" Clicked="() => OpenCourseDetailsModal(context)">
+                                    <i class="fas fa-eye me-1"></i>@L["View"]
+                                </Button>
+                            </DisplayTemplate>
+                        </DataGridColumn>
+                    </DataGridColumns>
+                </DataGrid>
+            }
+            else
+            {
+                <Alert Color="Color.Info" Visible="true">
+                    <AlertMessage>
+                        <i class="fas fa-info-circle me-2"></i>@L["MyCourses:NoCourses"]
+                    </AlertMessage>
+                </Alert>
+            }
+        }
+        else
+        {
+            <Alert Color="Color.Warning" Visible="true">
+                <AlertMessage>
+                    <i class="fas fa-exclamation-triangle me-2"></i>@L["Dashboard:NoAccessMessage"]
+                </AlertMessage>
+            </Alert>
+        }
+    </CardBody>
+</Card>
+
+<!-- Course Details Modal -->
+<Modal @ref="CourseDetailsModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <ModalHeader>
+            <ModalTitle>@SelectedCourse?.Name</ModalTitle>
+            <CloseButton Clicked="CloseCourseDetailsModal" />
+        </ModalHeader>
+        <ModalBody>
+            @if (SelectedCourse != null)
+            {
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["CourseCode"]</FieldLabel>
+                            <TextEdit Text="@SelectedCourse.Code" ReadOnly="true" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Credits"]</FieldLabel>
+                            <NumericEdit TValue="int" Value="@SelectedCourse.Credits" ReadOnly="true" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Status"]</FieldLabel>
+                            <TextEdit Text="@L[$"Enum:CourseStatus.{SelectedCourse.Status}"]" ReadOnly="true" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Description"]</FieldLabel>
+                            <MemoEdit Text="@SelectedCourse.Description" Rows="5" ReadOnly="true" />
+                        </Field>
+                    </Column>
+                </Row>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseCourseDetailsModal">@L["Close"]</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>

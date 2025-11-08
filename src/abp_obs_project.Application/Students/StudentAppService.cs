@@ -10,6 +10,8 @@ using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.EventBus.Distributed;
+using Volo.Abp.Identity;
+using Volo.Abp.Uow;
 
 namespace abp_obs_project.Students;
 
@@ -20,23 +22,31 @@ public class StudentAppService : ApplicationService, IStudentAppService
     private readonly StudentManager _studentManager;
     private readonly IDistributedEventBus _distributedEventBus;
     private readonly IObsCacheService _cacheService;
+    private readonly IdentityUserManager _identityUserManager;
+    private readonly IIdentityRoleRepository _identityRoleRepository;
 
     public StudentAppService(
         IStudentRepository studentRepository,
         StudentManager studentManager,
         IDistributedEventBus distributedEventBus,
-        IObsCacheService cacheService)
+        IObsCacheService cacheService,
+        IdentityUserManager identityUserManager,
+        IIdentityRoleRepository identityRoleRepository)
     {
         _studentRepository = studentRepository;
         _studentManager = studentManager;
         _distributedEventBus = distributedEventBus;
         _cacheService = cacheService;
+        _identityUserManager = identityUserManager;
+        _identityRoleRepository = identityRoleRepository;
     }
 
     [Authorize(abp_obs_projectPermissions.Students.ViewAll)]
     public virtual async Task<PagedResultDto<StudentDto>> GetListAsync(GetStudentsInput input)
     {
         // Use cache only for simple list requests (no filters, no pagination)
+        // Cache can be used for simple list requests (no filters)
+        // Pagination (SkipCount) will be applied after getting from cache
         var isSimpleListRequest = string.IsNullOrWhiteSpace(input.FilterText) &&
                                   string.IsNullOrWhiteSpace(input.FirstName) &&
                                   string.IsNullOrWhiteSpace(input.LastName) &&
@@ -44,8 +54,7 @@ public class StudentAppService : ApplicationService, IStudentAppService
                                   string.IsNullOrWhiteSpace(input.StudentNumber) &&
                                   input.Gender == null &&
                                   input.BirthDateMin == null &&
-                                  input.BirthDateMax == null &&
-                                  input.SkipCount == 0;
+                                  input.BirthDateMax == null;
 
         if (isSimpleListRequest)
         {
@@ -54,9 +63,10 @@ public class StudentAppService : ApplicationService, IStudentAppService
                 async () =>
                 {
                     var totalCount = await _studentRepository.GetCountAsync();
+                    // Cache all items (no pagination limit)
                     var items = await _studentRepository.GetListAsync(
                         sorting: input.Sorting,
-                        maxResultCount: input.MaxResultCount
+                        maxResultCount: int.MaxValue  // Get all items for cache
                     );
 
                     return new PagedResultDto<StudentDto>
@@ -67,7 +77,17 @@ public class StudentAppService : ApplicationService, IStudentAppService
                 }
             );
 
-            return cachedResult!;
+            // Apply pagination to cached result
+            var pagedItems = cachedResult!.Items
+                .Skip(input.SkipCount)
+                .Take(input.MaxResultCount)
+                .ToList();
+
+            return new PagedResultDto<StudentDto>
+            {
+                TotalCount = cachedResult.TotalCount,
+                Items = pagedItems
+            };
         }
 
         // For filtered/paginated requests, bypass cache
@@ -126,6 +146,86 @@ public class StudentAppService : ApplicationService, IStudentAppService
         await _cacheService.RemoveAsync(ObsCacheKeys.Students.List);
 
         // Publish distributed event
+        await _distributedEventBus.PublishAsync(new StudentCreatedEto
+        {
+            Id = student.Id,
+            FirstName = student.FirstName,
+            LastName = student.LastName,
+            Email = student.Email,
+            StudentNumber = student.StudentNumber,
+            CreationTime = Clock.Now
+        });
+
+        return ObjectMapper.Map<Student, StudentDto>(student);
+    }
+
+    /// <summary>
+    /// Creates a new student along with their identity user account for authentication
+    /// This method ensures both the student entity and identity user are created in a single transaction
+    /// </summary>
+    [Authorize(abp_obs_projectPermissions.Students.Create)]
+    [UnitOfWork]
+    public virtual async Task<StudentDto> CreateStudentWithUserAsync(CreateStudentWithUserDto input)
+    {
+        // Step 1: Create Identity User for authentication
+        var identityUser = new IdentityUser(
+            GuidGenerator.Create(),
+            input.UserName,
+            input.Email,
+            CurrentTenant.Id
+        );
+
+        identityUser.SetEmailConfirmed(true); // Auto-confirm email for admin-created accounts
+
+        // Set user's name and surname
+        identityUser.Name = input.FirstName;
+        identityUser.Surname = input.LastName;
+
+        if (!string.IsNullOrWhiteSpace(input.Phone))
+        {
+            identityUser.SetPhoneNumber(input.Phone, false);
+        }
+
+        // Create user with password
+        var identityResult = await _identityUserManager.CreateAsync(identityUser, input.Password);
+        if (!identityResult.Succeeded)
+        {
+            throw new Volo.Abp.BusinessException("StudentCreation:IdentityUserCreationFailed")
+                .WithData("errors", string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+        }
+
+        // Step 2: Assign "Student" role to the user
+        var studentRole = await _identityRoleRepository.FindByNormalizedNameAsync("STUDENT");
+        if (studentRole != null)
+        {
+            await _identityUserManager.AddToRoleAsync(identityUser, studentRole.Name);
+        }
+
+        // Step 3: Create Student domain entity
+        Student student;
+        try
+        {
+            student = await _studentManager.CreateAsync(
+                input.FirstName,
+                input.LastName,
+                input.Email,
+                input.StudentNumber,
+                input.BirthDate,
+                input.Gender,
+                input.Phone
+            );
+        }
+        catch (Exception)
+        {
+            // If student creation fails, delete the identity user to maintain consistency
+            await _identityUserManager.DeleteAsync(identityUser);
+            throw;
+        }
+
+        // Step 4: Invalidate cache after creation
+        await _cacheService.RemoveAsync(ObsCacheKeys.Students.List);
+
+        // Step 5: Publish distributed event
         await _distributedEventBus.PublishAsync(new StudentCreatedEto
         {
             Id = student.Id,

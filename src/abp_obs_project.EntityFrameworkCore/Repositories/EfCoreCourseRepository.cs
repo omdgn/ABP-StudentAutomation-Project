@@ -170,11 +170,24 @@ public class EfCoreCourseRepository(IDbContextProvider<abp_obs_projectDbContext>
         Guid? teacherId = null)
     {
         return query
+            // Turkish character friendly search using ILIKE (PostgreSQL case-insensitive)
+            // Search in: Course Name, Course Code, Teacher FirstName, Teacher LastName, Status
             .WhereIf(!string.IsNullOrWhiteSpace(filterText), e =>
-                e.Course.Name.Contains(filterText!) ||
-                e.Course.Code.Contains(filterText!))
-            .WhereIf(!string.IsNullOrWhiteSpace(name), e => e.Course.Name.Contains(name!))
-            .WhereIf(!string.IsNullOrWhiteSpace(code), e => e.Course.Code.Contains(code!))
+                EF.Functions.ILike(EF.Functions.Collate(e.Course.Name, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default")) ||
+                EF.Functions.ILike(EF.Functions.Collate(e.Course.Code, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default")) ||
+                (e.Teacher != null && EF.Functions.ILike(EF.Functions.Collate(e.Teacher.FirstName, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default"))) ||
+                (e.Teacher != null && EF.Functions.ILike(EF.Functions.Collate(e.Teacher.LastName, "default"),
+                    EF.Functions.Collate($"%{filterText}%", "default"))) ||
+                EF.Functions.ILike(e.Course.Status.ToString(), $"%{filterText}%"))
+            .WhereIf(!string.IsNullOrWhiteSpace(name), e =>
+                EF.Functions.ILike(EF.Functions.Collate(e.Course.Name, "default"),
+                    EF.Functions.Collate($"%{name}%", "default")))
+            .WhereIf(!string.IsNullOrWhiteSpace(code), e =>
+                EF.Functions.ILike(EF.Functions.Collate(e.Course.Code, "default"),
+                    EF.Functions.Collate($"%{code}%", "default")))
             .WhereIf(creditsMin.HasValue, e => e.Course.Credits >= creditsMin!.Value)
             .WhereIf(creditsMax.HasValue, e => e.Course.Credits <= creditsMax!.Value)
             .WhereIf(status.HasValue, e => e.Course.Status == status)

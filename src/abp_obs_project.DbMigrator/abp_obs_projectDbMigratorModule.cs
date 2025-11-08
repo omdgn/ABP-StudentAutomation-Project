@@ -11,4 +11,8 @@ namespace abp_obs_project.DbMigrator;
     )]
 public class abp_obs_projectDbMigratorModule : AbpModule
 {
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        // Configuration validation can be added here if needed
+    }
 }

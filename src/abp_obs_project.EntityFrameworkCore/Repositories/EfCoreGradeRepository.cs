@@ -181,7 +181,8 @@ public class EfCoreGradeRepository(IDbContextProvider<abp_obs_projectDbContext> 
             .WhereIf(!string.IsNullOrWhiteSpace(filterText), e =>
                 e.Student.FirstName.Contains(filterText!) ||
                 e.Student.LastName.Contains(filterText!) ||
-                e.Course.Name.Contains(filterText!))
+                e.Course.Name.Contains(filterText!) ||
+                (e.Grade.Comments != null && e.Grade.Comments.Contains(filterText!)))
             .WhereIf(studentId.HasValue, e => e.Grade.StudentId == studentId)
             .WhereIf(courseId.HasValue, e => e.Grade.CourseId == courseId)
             .WhereIf(gradeValueMin.HasValue, e => e.Grade.GradeValue >= gradeValueMin!.Value)

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +33,19 @@ class Program
 
     public static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
-            .AddAppSettingsSecretsJson()
+            .ConfigureAppConfiguration((hostingContext, config) =>
+            {
+                // AppContext.BaseDirectory output dizinini (bin/Debug/net9.0) gösterir
+                config.SetBasePath(AppContext.BaseDirectory);
+                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                config.AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+                config.AddJsonFile("appsettings.secrets.json", optional: true, reloadOnChange: true);
+                config.AddEnvironmentVariables();
+                if (args != null)
+                {
+                    config.AddCommandLine(args);
+                }
+            })
             .ConfigureLogging((context, logging) => logging.ClearProviders())
             .ConfigureServices((hostContext, services) =>
             {

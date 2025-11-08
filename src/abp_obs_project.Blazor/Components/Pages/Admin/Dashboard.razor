@@ -1,0 +1,165 @@
+@page "/"
+@page "/admin"
+@page "/admin/dashboard"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Students
+@using abp_obs_project.Teachers
+@using abp_obs_project.Courses
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@inject IStudentAppService StudentAppService
+@inject ITeacherAppService TeacherAppService
+@inject ICourseAppService CourseAppService
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-chart-line me-2"></i>@L["Dashboard:Admin"]
+            </h1>
+        </div>
+    </div>
+
+    @if (IsAdmin)
+    {
+        <!-- Admin Dashboard -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="mb-3">@L["Dashboard:Overview"]</h3>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <!-- Total Students Card -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-primary h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:TotalStudents"]</h6>
+                                <h2 class="mb-0">@TotalStudents</h2>
+                            </div>
+                            <div class="text-primary" style="font-size: 3rem;">
+                                <i class="fas fa-user-graduate"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/admin/students" class="text-decoration-none">
+                            @L["Dashboard:ViewAll"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Teachers Card -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-success h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:TotalTeachers"]</h6>
+                                <h2 class="mb-0">@TotalTeachers</h2>
+                            </div>
+                            <div class="text-success" style="font-size: 3rem;">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/admin/teachers" class="text-decoration-none">
+                            @L["Dashboard:ViewAll"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Courses Card -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-info h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:TotalCourses"]</h6>
+                                <h2 class="mb-0">@TotalCourses</h2>
+                            </div>
+                            <div class="text-info" style="font-size: 3rem;">
+                                <i class="fas fa-book"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/admin/courses" class="text-decoration-none">
+                            @L["Dashboard:ViewAll"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Courses Card -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-warning h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:ActiveCourses"]</h6>
+                                <h2 class="mb-0">@ActiveCourses</h2>
+                            </div>
+                            <div class="text-warning" style="font-size: 3rem;">
+                                <i class="fas fa-book-open"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <span class="text-muted">In Progress</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L["Dashboard:QuickActions"]</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <a href="/admin/students" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-user-graduate fa-2x d-block mb-2"></i>
+                                    @L["Dashboard:ManageStudents"]
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="/admin/teachers" class="btn btn-outline-success w-100 py-3">
+                                    <i class="fas fa-chalkboard-teacher fa-2x d-block mb-2"></i>
+                                    @L["Dashboard:ManageTeachers"]
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="/admin/courses" class="btn btn-outline-info w-100 py-3">
+                                    <i class="fas fa-book fa-2x d-block mb-2"></i>
+                                    @L["Dashboard:ManageCourses"]
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Non-Admin Users -->
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    You don't have permission to view this page. Please contact your administrator.
+                </div>
+            </div>
+        </div>
+    }
+</div>

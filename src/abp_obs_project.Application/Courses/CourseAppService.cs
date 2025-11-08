@@ -40,9 +40,35 @@ public class CourseAppService : ApplicationService, ICourseAppService
     /// Gets a paginated and filtered list of courses with teacher information
     /// Uses GetListWithNavigationPropertiesAsync for efficient loading
     /// </summary>
-    [Authorize(abp_obs_projectPermissions.Courses.ViewAll)]
     public virtual async Task<PagedResultDto<CourseDto>> GetListAsync(GetCoursesInput input)
     {
+        // If user doesn't have ViewAll, restrict to their own courses by email -> teacher
+        var hasViewAll = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.ViewAll);
+        if (!hasViewAll)
+        {
+            var email = CurrentUser.Email;
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return new PagedResultDto<CourseDto>
+                {
+                    TotalCount = 0,
+                    Items = new List<CourseDto>()
+                };
+            }
+
+            var teacher = await _teacherRepository.FindByEmailAsync(email);
+            if (teacher == null)
+            {
+                return new PagedResultDto<CourseDto>
+                {
+                    TotalCount = 0,
+                    Items = new List<CourseDto>()
+                };
+            }
+
+            input.TeacherId = teacher.Id;
+        }
+
         // Use cache only for simple list requests (no filters, no pagination)
         var isSimpleListRequest = string.IsNullOrWhiteSpace(input.FilterText) &&
                                   string.IsNullOrWhiteSpace(input.Name) &&
@@ -71,7 +97,9 @@ public class CourseAppService : ApplicationService, ICourseAppService
                         Items = items.Select(item =>
                         {
                             var dto = ObjectMapper.Map<Course, CourseDto>(item.Course);
-                            dto.TeacherName = $"{item.Teacher.FirstName} {item.Teacher.LastName}";
+                            dto.TeacherName = item.Teacher != null
+                                ? $"{item.Teacher.FirstName} {item.Teacher.LastName}"
+                                : null;
                             return dto;
                         }).ToList()
                     };
@@ -112,7 +140,9 @@ public class CourseAppService : ApplicationService, ICourseAppService
             Items = items.Select(item =>
             {
                 var dto = ObjectMapper.Map<Course, CourseDto>(item.Course);
-                dto.TeacherName = $"{item.Teacher.FirstName} {item.Teacher.LastName}";
+                dto.TeacherName = item.Teacher != null
+                    ? $"{item.Teacher.FirstName} {item.Teacher.LastName}"
+                    : null;
                 return dto;
             }).ToList()
         };
@@ -126,7 +156,9 @@ public class CourseAppService : ApplicationService, ICourseAppService
         var courseWithNavigation = await _courseRepository.GetWithNavigationPropertiesAsync(id);
 
         var dto = ObjectMapper.Map<Course, CourseDto>(courseWithNavigation.Course);
-        dto.TeacherName = $"{courseWithNavigation.Teacher.FirstName} {courseWithNavigation.Teacher.LastName}";
+        dto.TeacherName = courseWithNavigation.Teacher != null
+            ? $"{courseWithNavigation.Teacher.FirstName} {courseWithNavigation.Teacher.LastName}"
+            : null;
 
         return dto;
     }
@@ -194,8 +226,13 @@ public class CourseAppService : ApplicationService, ICourseAppService
     {
         var dto = ObjectMapper.Map<Course, CourseDto>(course);
 
-        var teacher = await _teacherRepository.GetAsync(course.TeacherId);
-        dto.TeacherName = $"{teacher.FirstName} {teacher.LastName}";
+        if (course.TeacherId != Guid.Empty)
+        {
+            var teacher = await _teacherRepository.FindAsync(course.TeacherId);
+            dto.TeacherName = teacher != null
+                ? $"{teacher.FirstName} {teacher.LastName}"
+                : null;
+        }
 
         return dto;
     }

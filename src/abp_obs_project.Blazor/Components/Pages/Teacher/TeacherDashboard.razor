@@ -1,0 +1,180 @@
+@page "/teacher"
+@page "/teacher/dashboard"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Students
+@using abp_obs_project.Courses
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@inject IStudentAppService StudentAppService
+@inject ICourseAppService CourseAppService
+@attribute [Authorize]
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-chart-line me-2"></i>@L["Dashboard:Teacher"]
+            </h1>
+        </div>
+    </div>
+
+    @if (IsTeacher)
+    {
+        <!-- Teacher Dashboard -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="mb-3">@L["Dashboard:Overview"]</h3>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <!-- My Courses Card -->
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-primary h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:TotalMyCourses"]</h6>
+                                <h2 class="mb-0">@TotalMyCourses</h2>
+                            </div>
+                            <div class="text-primary" style="font-size: 3rem;">
+                                <i class="fas fa-book"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/teacher/my-courses" class="text-decoration-none">
+                            @L["Dashboard:ViewAll"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Students Card -->
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-success h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:TotalMyStudents"]</h6>
+                                <h2 class="mb-0">@TotalMyStudents</h2>
+                            </div>
+                            <div class="text-success" style="font-size: 3rem;">
+                                <i class="fas fa-user-graduate"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/teacher/my-students" class="text-decoration-none">
+                            @L["Dashboard:ViewAll"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Courses Card -->
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-warning h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:MyActiveCourses"]</h6>
+                                <h2 class="mb-0">@MyActiveCourses</h2>
+                            </div>
+                            <div class="text-warning" style="font-size: 3rem;">
+                                <i class="fas fa-book-open"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <span class="text-muted">In Progress</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Students -->
+        @if (RecentStudents != null && RecentStudents.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">@L["Dashboard:RecentStudents"]</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>@L["FirstName"]</th>
+                                            <th>@L["LastName"]</th>
+                                            <th>@L["Email"]</th>
+                                            <th>@L["StudentNumber"]</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var student in RecentStudents)
+                                        {
+                                            <tr>
+                                                <td>@student.FirstName</td>
+                                                <td>@student.LastName</td>
+                                                <td>@student.Email</td>
+                                                <td>@student.StudentNumber</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Quick Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L["Dashboard:QuickActions"]</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <a href="/teacher/my-courses" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-book fa-2x d-block mb-2"></i>
+                                    @L["Dashboard:ViewMyCourses"]
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="/teacher/my-courses" class="btn btn-outline-success w-100 py-3">
+                                    <i class="fas fa-star fa-2x d-block mb-2"></i>
+                                    @L["Dashboard:EnterGrades"]
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="/teacher/my-courses" class="btn btn-outline-info w-100 py-3">
+                                    <i class="fas fa-calendar-check fa-2x d-block mb-2"></i>
+                                    @L["Dashboard:RecordAttendance"]
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Non-Teacher Users -->
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @L["Dashboard:NoAccessMessage"]
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,257 @@
+@page "/admin/courses"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Courses
+@using abp_obs_project.Teachers
+@using Volo.Abp.AspNetCore.Components.Web
+@using Volo.Abp.Application.Dtos
+@inherits abp_obs_projectComponentBase
+@inject ICourseAppService CourseAppService
+@inject ITeacherAppService TeacherAppService
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>
+                    <i class="fas fa-book me-2"></i>@L["Courses"]
+                </h2>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if (CanCreateCourse)
+                {
+                    <Button Color="Color.Primary" Clicked="OpenCreateModalAsync">
+                        <i class="fa fa-plus me-1"></i>@L["NewCourse"]
+                    </Button>
+                }
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        <!-- Search Box -->
+        <Row Class="mb-3">
+            <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["SearchCourses"]</FieldLabel>
+                    <TextEdit Text="@Filter" TextChanged="OnSearchTextChanged" Placeholder="@L["SearchCourses"]" Debounce="true" DebounceInterval="500">
+                        <Feedback>
+                            <div class="mt-2">
+                                @if (!string.IsNullOrWhiteSpace(Filter))
+                                {
+                                    <Button Color="Color.Secondary" Clicked="ClearSearchAsync" Size="Size.Small">
+                                        <i class="fa fa-times me-1"></i>@L["Clear"]
+                                    </Button>
+                                }
+                            </div>
+                        </Feedback>
+                    </TextEdit>
+                </Field>
+            </Column>
+        </Row>
+
+        <DataGrid TItem="CourseDto"
+                  Data="CourseList"
+                  ReadData="OnDataGridReadAsync"
+                  TotalItems="TotalCount"
+                  ShowPager="true"
+                  PageSize="PageSize"
+                  CurrentPage="CurrentPage"
+                  Responsive="true">
+            <DataGridColumns>
+                <DataGridColumn TItem="CourseDto"
+                                Field="@nameof(CourseDto.Code)"
+                                Caption="@L["CourseCode"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="CourseDto"
+                                Field="@nameof(CourseDto.Name)"
+                                Caption="@L["CourseName"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="CourseDto"
+                                Field="@nameof(CourseDto.Credits)"
+                                Caption="@L["Credits"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="CourseDto"
+                                Field="@nameof(CourseDto.TeacherName)"
+                                Caption="Teacher">
+                    <DisplayTemplate>
+                        @(context.TeacherName ?? "-")
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="CourseDto"
+                                Field="@nameof(CourseDto.Status)"
+                                Caption="@L["Status"]">
+                    <DisplayTemplate>
+                        @L[$"Enum:CourseStatus.{context.Status}"]
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="CourseDto"
+                                Field="@nameof(CourseDto.Id)"
+                                Caption="@L["Actions"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        <Dropdown>
+                            <DropdownToggle Color="Color.Primary">
+                                <i class="fa fa-cog"></i> @L["Actions"]
+                            </DropdownToggle>
+                            <DropdownMenu>
+                                @if (CanEditCourse)
+                                {
+                                    <DropdownItem Clicked="() => OpenEditModalAsync(context)">
+                                        <i class="fas fa-edit me-1"></i>@L["Edit"]
+                                    </DropdownItem>
+                                }
+                                @if (CanDeleteCourse)
+                                {
+                                    <DropdownItem Clicked="() => DeleteCourseAsync(context)">
+                                        <i class="fas fa-trash me-1"></i>@L["Delete"]
+                                    </DropdownItem>
+                                }
+                            </DropdownMenu>
+                        </Dropdown>
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+<!-- Create Modal -->
+<Modal @ref="CreateModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["NewCourse"]</ModalTitle>
+                <CloseButton Clicked="CloseCreateModalAsync" />
+            </ModalHeader>
+            <ModalBody>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["CourseName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewCourse.Name" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["CourseCode"] *</FieldLabel>
+                            <TextEdit @bind-Text="@NewCourse.Code" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Credits"] *</FieldLabel>
+                            <NumericEdit TValue="int" @bind-Value="@NewCourse.Credits" Min="1" Max="10" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>Teacher *</FieldLabel>
+                            <Select TValue="Guid" @bind-SelectedValue="@NewCourse.TeacherId">
+                                <SelectItem Value="Guid.Empty">-- Select Teacher --</SelectItem>
+                                @foreach (var teacher in TeacherList)
+                                {
+                                    <SelectItem Value="@teacher.Id">@teacher.FullName</SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Status"] *</FieldLabel>
+                            <Select TValue="EnumCourseStatus" @bind-SelectedValue="@NewCourse.Status">
+                                @foreach (var status in Enum.GetValues<EnumCourseStatus>())
+                                {
+                                    <SelectItem Value="@status">@L[$"Enum:CourseStatus.{status}"]</SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Description"]</FieldLabel>
+                            <MemoEdit Rows="3" @bind-Text="@NewCourse.Description" />
+                        </Field>
+                    </Column>
+                </Row>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseCreateModalAsync">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="CreateCourseAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>
+
+<!-- Edit Modal -->
+<Modal @ref="EditModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["Edit"] - @EditingCourse.Name</ModalTitle>
+                <CloseButton Clicked="CloseEditModalAsync" />
+            </ModalHeader>
+            <ModalBody>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["CourseName"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingCourse.Name" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["CourseCode"] *</FieldLabel>
+                            <TextEdit @bind-Text="@EditingCourse.Code" />
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Credits"] *</FieldLabel>
+                            <NumericEdit TValue="int" @bind-Value="@EditingCourse.Credits" Min="1" Max="10" />
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>Teacher *</FieldLabel>
+                            <Select TValue="Guid" @bind-SelectedValue="@EditingCourse.TeacherId">
+                                <SelectItem Value="Guid.Empty">-- Select Teacher --</SelectItem>
+                                @foreach (var teacher in TeacherList)
+                                {
+                                    <SelectItem Value="@teacher.Id">@teacher.FullName</SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                </Row>
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is6">
+                        <Field>
+                            <FieldLabel>@L["Status"] *</FieldLabel>
+                            <Select TValue="EnumCourseStatus" @bind-SelectedValue="@EditingCourse.Status">
+                                @foreach (var status in Enum.GetValues<EnumCourseStatus>())
+                                {
+                                    <SelectItem Value="@status">@L[$"Enum:CourseStatus.{status}"]</SelectItem>
+                                }
+                            </Select>
+                        </Field>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>@L["Description"]</FieldLabel>
+                            <MemoEdit Rows="3" @bind-Text="@EditingCourse.Description" />
+                        </Field>
+                    </Column>
+                </Row>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseEditModalAsync">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="UpdateCourseAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>

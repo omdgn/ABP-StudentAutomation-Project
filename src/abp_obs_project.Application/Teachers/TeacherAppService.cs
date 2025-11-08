@@ -7,6 +7,8 @@ using abp_obs_project.Permissions;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Identity;
+using Volo.Abp.Uow;
 
 namespace abp_obs_project.Teachers;
 
@@ -20,15 +22,21 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
     private readonly ITeacherRepository _teacherRepository;
     private readonly TeacherManager _teacherManager;
     private readonly IObsCacheService _cacheService;
+    private readonly IdentityUserManager _identityUserManager;
+    private readonly IIdentityRoleRepository _identityRoleRepository;
 
     public TeacherAppService(
         ITeacherRepository teacherRepository,
         TeacherManager teacherManager,
-        IObsCacheService cacheService)
+        IObsCacheService cacheService,
+        IdentityUserManager identityUserManager,
+        IIdentityRoleRepository identityRoleRepository)
     {
         _teacherRepository = teacherRepository;
         _teacherManager = teacherManager;
         _cacheService = cacheService;
+        _identityUserManager = identityUserManager;
+        _identityRoleRepository = identityRoleRepository;
     }
 
     /// <summary>
@@ -37,13 +45,12 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
     [Authorize(abp_obs_projectPermissions.Teachers.ViewAll)]
     public virtual async Task<PagedResultDto<TeacherDto>> GetListAsync(GetTeachersInput input)
     {
-        // Use cache only for simple list requests (no filters, no pagination)
+        // Use cache only for simple list requests (no filters). Cache full list and paginate in-memory
         var isSimpleListRequest = string.IsNullOrWhiteSpace(input.FilterText) &&
                                   string.IsNullOrWhiteSpace(input.FirstName) &&
                                   string.IsNullOrWhiteSpace(input.LastName) &&
                                   string.IsNullOrWhiteSpace(input.Email) &&
-                                  string.IsNullOrWhiteSpace(input.Department) &&
-                                  input.SkipCount == 0;
+                                  string.IsNullOrWhiteSpace(input.Department);
 
         if (isSimpleListRequest)
         {
@@ -52,9 +59,10 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
                 async () =>
                 {
                     var totalCount = await _teacherRepository.GetCountAsync();
+                    // Cache all items (no pagination limit)
                     var items = await _teacherRepository.GetListAsync(
                         sorting: input.Sorting,
-                        maxResultCount: input.MaxResultCount
+                        maxResultCount: int.MaxValue
                     );
 
                     return new PagedResultDto<TeacherDto>
@@ -65,7 +73,17 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
                 }
             );
 
-            return cachedResult!;
+            // Apply pagination to cached result
+            var pagedItems = cachedResult!.Items
+                .Skip(input.SkipCount)
+                .Take(input.MaxResultCount)
+                .ToList();
+
+            return new PagedResultDto<TeacherDto>
+            {
+                TotalCount = cachedResult.TotalCount,
+                Items = pagedItems
+            };
         }
 
         // For filtered/paginated requests, bypass cache
@@ -168,5 +186,72 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
         );
 
         return ObjectMapper.Map<List<Teacher>, List<TeacherLookupDto>>(teachers);
+    }
+
+    /// <summary>
+    /// Creates a new teacher along with their identity user account for authentication
+    /// This method ensures both the teacher entity and identity user are created in a single transaction
+    /// </summary>
+    [Authorize(abp_obs_projectPermissions.Teachers.Create)]
+    [UnitOfWork]
+    public virtual async Task<TeacherDto> CreateTeacherWithUserAsync(CreateTeacherWithUserDto input)
+    {
+        // Step 1: Create Identity User for authentication
+        var identityUser = new IdentityUser(
+            GuidGenerator.Create(),
+            input.UserName,
+            input.Email,
+            CurrentTenant.Id
+        );
+
+        identityUser.SetEmailConfirmed(true); // Auto-confirm email for admin-created accounts
+
+        // Set user's name and surname
+        identityUser.Name = input.FirstName;
+        identityUser.Surname = input.LastName;
+
+        if (!string.IsNullOrWhiteSpace(input.PhoneNumber))
+        {
+            identityUser.SetPhoneNumber(input.PhoneNumber, false);
+        }
+
+        // Create user with password
+        var identityResult = await _identityUserManager.CreateAsync(identityUser, input.Password);
+        if (!identityResult.Succeeded)
+        {
+            throw new Volo.Abp.BusinessException("TeacherCreation:IdentityUserCreationFailed")
+                .WithData("errors", string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+        }
+
+        // Step 2: Assign "Teacher" role to the user
+        var teacherRole = await _identityRoleRepository.FindByNormalizedNameAsync("TEACHER");
+        if (teacherRole != null)
+        {
+            await _identityUserManager.AddToRoleAsync(identityUser, teacherRole.Name);
+        }
+
+        // Step 3: Create Teacher domain entity
+        Teacher teacher;
+        try
+        {
+            teacher = await _teacherManager.CreateAsync(
+                input.FirstName,
+                input.LastName,
+                input.Email,
+                input.Department,
+                input.PhoneNumber
+            );
+        }
+        catch (Exception)
+        {
+            // If teacher creation fails, delete the identity user to maintain consistency
+            await _identityUserManager.DeleteAsync(identityUser);
+            throw;
+        }
+
+        // Step 4: Invalidate cache after creation
+        await _cacheService.RemoveAsync(ObsCacheKeys.Teachers.List);
+
+        return ObjectMapper.Map<Teacher, TeacherDto>(teacher);
     }
 }

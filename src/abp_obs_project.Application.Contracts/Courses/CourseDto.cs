@@ -15,6 +15,6 @@ public class CourseDto : AuditedEntityDto<Guid>
     public EnumCourseStatus Status { get; set; }
     public Guid TeacherId { get; set; }
 
-    // Teacher navigation property for display purposes
-    public string TeacherName { get; set; } = string.Empty;
+    // Teacher navigation property for display purposes (nullable - course may not have teacher assigned)
+    public string? TeacherName { get; set; }
 }

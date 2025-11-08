@@ -18,9 +18,6 @@ public class StudentDto : AuditedEntityDto<Guid>
     public Guid? TeacherId { get; set; }
     public string? TeacherName { get; set; }
 
-    // Address
-    public string? Address { get; set; }
-
     // Computed Property
     public string FullName => $"{FirstName} {LastName}";
 }

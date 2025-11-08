@@ -202,7 +202,8 @@ public class EfCoreAttendanceRepository(IDbContextProvider<abp_obs_projectDbCont
             .WhereIf(!string.IsNullOrWhiteSpace(filterText), e =>
                 e.Student.FirstName.Contains(filterText!) ||
                 e.Student.LastName.Contains(filterText!) ||
-                e.Course.Name.Contains(filterText!))
+                e.Course.Name.Contains(filterText!) ||
+                (e.Attendance.Remarks != null && e.Attendance.Remarks.Contains(filterText!)))
             .WhereIf(studentId.HasValue, e => e.Attendance.StudentId == studentId)
             .WhereIf(courseId.HasValue, e => e.Attendance.CourseId == courseId)
             .WhereIf(attendanceDateMin.HasValue, e => e.Attendance.AttendanceDate >= attendanceDateMin!.Value)
