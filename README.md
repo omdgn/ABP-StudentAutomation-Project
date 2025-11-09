@@ -1,10 +1,10 @@
-# ABP Student Automation (abp_obs_project)
+# ABP Öğrenci Otomasyonu (abp_obs_project)
 
-Bu dosya proje genelini, kurulum adımlarını, rol/izin modelini, önemli dosya/yol referanslarını ve sık karşılaşılan sorunların çözümlerini kapsamlı biçimde açıklar. Dosya yolu referansları, IDE’nizde doğrudan açılabilmesi için proje içindeki gerçek yollarla verilmiştir.
+Bu rehber; mimariyi, kurulum/sunum adımlarını, roller–izinleri, önemli dosya yollarını ve eklediğimiz tüm özellikleri örnek kodlarla birlikte anlatan sunum‑tarzı bir dokümandır. Verilen tüm dosya yolları projedeki gerçek konumlardır ve IDE’nizde tıklanarak açılabilir.
 
 ## İçindekiler
 - Genel Bakış
-- Mimarî ve Katmanlar
+- Mimari ve Katmanlar
 - Önemli Dosya ve Klasörler
 - Kurulum ve Çalıştırma
 - Docker ile Çalıştırma
@@ -37,7 +37,7 @@ Repo kökünde iki ana bölüm bulunur:
 
 ---
 
-## Mimarî ve Katmanlar
+## Mimari ve Katmanlar
 ABP’nin tipik temiz mimarisi izlenir:
 - Domain Shared: `abp_obs_project/src/abp_obs_project.Domain.Shared` – Sabitler (Consts), Localization, Exception tipleri.
 - Domain: `abp_obs_project/src/abp_obs_project.Domain` – Varlıklar (Entities), Domain servisleri (Manager), Repository sözleşmeleri.
@@ -52,7 +52,8 @@ ABP’nin tipik temiz mimarisi izlenir:
 ## Önemli Dosya ve Klasörler
 - Çözüm kökü
   - `abp_obs_project/docker-compose.yml`
-  - `Abp_STO_Project_ReadMe.md` (bu dosya)
+  - `abp_obs_project/README.md` (bu dosya)
+  - `abp_obs_project/Abp_README.md` (ABP’nin oluşturduğu başlangıç notları)
 
 - Domain Shared
   - Localization:
@@ -156,6 +157,9 @@ Rol ve İzinler (örnek):
 - Dosya: `abp_obs_project/src/abp_obs_project.Domain/Data/abp_obs_projectDataSeederContributor.cs`
 - Roller ve izin atamaları, ilk kullanıcılar ve OpenIddict istemcileri burada tanımlanır.
 
+- OpenIddict istemci ve scope seeding örneği: `abp_obs_project/src/abp_obs_project.Domain/OpenIddict/OpenIddictDataSeedContributor.cs`
+  - Swagger istemcisi otomatik oluşturulur, gerekli izinler ve yönlendirme URL’leri atanır.
+
 ---
 
 ## Swagger ve Test
@@ -176,6 +180,38 @@ Rol ve İzinler (örnek):
   - Teacher: `abp_obs_project/src/abp_obs_project.Blazor/Menus/Teacher/TeacherMenuContributor.cs`
   - Student: `abp_obs_project/src/abp_obs_project.Blazor/Menus/Student/StudentMenuContributor.cs`
 
+Örnek: Rol bazlı dashboard yönlendirmesi (Index.razor)
+
+```
+abp_obs_project/src/abp_obs_project.Blazor/Components/Pages/Index.razor
+```
+
+```
+// Admin: Students.ViewAll + Teachers.ViewAll
+// Teacher: Courses/Grades/Attendances ViewAll’dan en az biri
+// Aksi halde Student kabul edilir
+var hasStudentManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Students.ViewAll);
+var hasTeacherManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Teachers.ViewAll);
+if (hasStudentManagement && hasTeacherManagement) NavigationManager.NavigateTo("/admin/dashboard", true);
+...
+```
+
+Örnek: Student menüsü sadece öğrenci profiline uygun olduğunda gösterilir ve diğer menüler temizlenir:
+
+```
+abp_obs_project/src/abp_obs_project.Blazor/Menus/Student/StudentMenuContributor.cs
+```
+
+```
+// Admin/Teacher izinlerine sahipse öğrenci menüsü oluşturulmaz
+if (hasStudentsViewAll || hasTeachersViewAll || hasGradesCreate || hasAttendancesCreate || hasCoursesCreate) return;
+
+// Sadece öğrenci menüsünü göstermek için mevcut öğeleri temizle
+context.Menu.Items.Clear();
+
+// Dashboard, My Courses, My Grades, My Attendances, Profile eklenir
+```
+
 ---
 
 ## Öğrenci Özellikleri
@@ -186,6 +222,31 @@ Rol ve İzinler (örnek):
 - Derslerim: `StudentMyCourses` (arama/filtre/sayfalama)
 - Devamsızlıklarım: `StudentMyAttendances` (filtreler + özet)
 - Self endpoint’ler: `GetMeAsync`, `GetMyCoursesAsync`, `GetMyGradesAsync`, `GetMyAttendancesAsync`
+
+Örnek: StudentMyCourses sunucu tarafı filtre/sıralama/sayfalama kullanımı
+
+```
+abp_obs_project/src/abp_obs_project.Blazor/Components/Pages/Student/StudentMyCourses.razor.cs
+```
+
+```
+var input = new GetMyCoursesInput {
+  FilterText = SearchText,
+  Status = StatusFilter,
+  CreditsMin = MinCredits,
+  CreditsMax = MaxCredits,
+  Sorting = CurrentSorting,
+  SkipCount = (CurrentPage - 1) * PageSize,
+  MaxResultCount = PageSize
+};
+var coursesResult = await CourseAppService.GetMyCoursesAsync(input);
+```
+
+Örnek: Öğrencinin kendi profilini güncellemesi (Identity ile senkron)
+
+```
+abp_obs_project/src/abp_obs_project.Application/Students/StudentAppService.cs: UpdateMyProfileAsync
+```
 
 ---
 
@@ -206,17 +267,52 @@ Rol ve İzinler (örnek):
 - Devamsızlık (Attendance) AppService: `abp_obs_project/src/abp_obs_project.Application/Attendances/AttendanceAppService.cs`
   - `GetMyAttendancesAsync()` öğrenciye özel listeyi döner.
 
+Örnek: Öğrencinin dersleri – çakışan Swagger route’u önlemek için dış API’dan gizleme
+
+```
+abp_obs_project/src/abp_obs_project.Application/Courses/CourseAppService.cs
+```
+
+```
+[RemoteService(false)]
+public virtual async Task<ListResultDto<CourseDto>> GetMyCoursesAsync() { ... }
+```
+
 ---
 
 ## Önbellekleme (Caching)
 - Anahtarlar ve kullanım: `abp_obs_project/src/abp_obs_project.Application/*` içerisinde (Students/Courses listelerinde örnek)
 - Redis desteği etkinleştirilebilir (appsettings üzerinden) ve `IObsCacheService` ile kullanılır.
 
+Örnek: Öğrenci listesinde basit isteklerde tüm listeyi cache’leyip sayfalamayı bellekte uygulama
+
+```
+abp_obs_project/src/abp_obs_project.Application/Students/StudentAppService.cs: GetListAsync
+```
+
+```
+var cachedResult = await _cacheService.GetOrSetAsync(
+  ObsCacheKeys.Students.List,
+  async () => { /* tüm listeyi getir ve map et */ }
+);
+// ardından Skip/Take ile sayfalama uygula
+```
+
 ---
 
 ## Olaylar ve Arka Plan (Events)
 - Örnek: Öğrenci/Not oluşturma sonrası `IDistributedEventBus` ile event yayınlanır.
 - Dosya örnekleri: `StudentAppService.cs`, `GradeAppService.cs`.
+
+Örnek: Not oluşturulduğunda dağıtık olay yayını
+
+```
+abp_obs_project/src/abp_obs_project.Application/Grades/GradeAppService.cs: CreateAsync
+```
+
+```
+await _distributedEventBus.PublishAsync(new GradeCreatedEto { GradeId = grade.Id, ... });
+```
 
 ---
 
@@ -251,6 +347,10 @@ Rol ve İzinler (örnek):
   - Sebep: Öğretmen/kullanıcı tespiti default izinlerle yapıldıysa yanlış eşleşebilir.
   - Çözüm: Yönetim (ViewAll) izinlerine göre ayrım yaptık.
 
+- Menü çakışmaları (Admin/Teacher/Student aynı anda görünmesi)
+  - Sebep: Menü katkıcılarında koşulların yeterince ayırt edici olmaması.
+  - Çözüm: Student menüsünde `context.Menu.Items.Clear()` ile menüyü temizleyip sadece öğrenci öğeleri eklendi; Teacher menüsü Admin koşulunu ayrı kontrol eder.
+
 ---
 
 ## Katkı ve Geliştirme
@@ -258,7 +358,11 @@ Rol ve İzinler (örnek):
 - Yeni endpoint eklerken Swagger çakışmalarına dikkat edin.
 - README’de değişiklik yaparken dosya yolu referanslarını doğru tutun.
 
+Eklenen önemli senaryolar ve notlar:
+- Öğrenci oluştururken Identity kullanıcı hesabı ile birlikte oluşturma: `CreateStudentWithUserAsync` (StudentAppService)
+- Öğrencinin kendi derslerini sayfalı ve filtreli getirme: `GetMyCoursesAsync(GetMyCoursesInput)` (CourseAppService)
+- Girişte rol‑temelli yönlendirme: `Components/Pages/Index.razor`
+
 ---
 
 Bu belge güncel proje durumunu ve yol haritasını yansıtır. Eksik gördüğünüz bölüm veya iyileştirme önerileriniz için pull request açabilirsiniz.
-
