@@ -44,35 +44,168 @@ public class GradeAppService : ApplicationService, IGradeAppService
     /// Gets a paginated and filtered list of grades with student and course information
     /// Uses GetListWithNavigationPropertiesAsync for efficient eager loading
     /// </summary>
-    [Authorize(abp_obs_projectPermissions.Grades.ViewAll)]
     public virtual async Task<PagedResultDto<GradeDto>> GetListAsync(GetGradesInput input)
     {
-        var totalCount = await _gradeRepository.GetCountAsync(
-            input.FilterText,
-            input.StudentId,
-            input.CourseId,
-            input.GradeValueMin,
-            input.GradeValueMax,
-            input.Status
-        );
+        // Treat users who are real teachers (Courses.Default && !Courses.ViewAll) as scoped users
+        var isTeacherScoped = (await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default))
+                              && !(await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.ViewAll));
 
-        var items = await _gradeRepository.GetListWithNavigationPropertiesAsync(
-            input.FilterText,
-            input.StudentId,
-            input.CourseId,
-            input.GradeValueMin,
-            input.GradeValueMax,
-            input.Status,
-            input.Sorting,
-            input.MaxResultCount,
-            input.SkipCount
-        );
+        // If not a scoped teacher and has Grades.ViewAll, keep global listing
+        var hasGradesViewAll = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Grades.ViewAll);
+        if (!isTeacherScoped && hasGradesViewAll)
+        {
+            var totalCountAll = await _gradeRepository.GetCountAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.GradeValueMin,
+                input.GradeValueMax,
+                input.Status
+            );
 
-        // Map grades with student and course information
+            var itemsAll = await _gradeRepository.GetListWithNavigationPropertiesAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.GradeValueMin,
+                input.GradeValueMax,
+                input.Status,
+                input.Sorting,
+                input.MaxResultCount,
+                input.SkipCount
+            );
+
+            return new PagedResultDto<GradeDto>
+            {
+                TotalCount = totalCountAll,
+                Items = itemsAll.Select(item =>
+                {
+                    var dto = ObjectMapper.Map<Grade, GradeDto>(item.Grade);
+                    dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";
+                    dto.CourseName = item.Course.Name;
+                    return dto;
+                }).ToList()
+            };
+        }
+
+        // Otherwise, scope to current teacher's courses by CurrentUser.Email
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return new PagedResultDto<GradeDto>
+            {
+                TotalCount = 0,
+                Items = Array.Empty<GradeDto>().ToList()
+            };
+        }
+
+        var teacherRepo = LazyServiceProvider.LazyGetRequiredService<Teachers.ITeacherRepository>();
+        var teacher = await teacherRepo.FindByEmailAsync(email);
+        if (teacher == null)
+        {
+            return new PagedResultDto<GradeDto>
+            {
+                TotalCount = 0,
+                Items = Array.Empty<GradeDto>().ToList()
+            };
+        }
+
+        // Get teacher's courses
+        var teacherCourses = await _courseRepository.GetCoursesByTeacherIdAsync(teacher.Id);
+        var allowedCourseIds = teacherCourses.Select(c => c.Id).ToHashSet();
+
+        // If client requested a specific course that is not allowed, return empty
+        if (input.CourseId.HasValue && !allowedCourseIds.Contains(input.CourseId.Value))
+        {
+            return new PagedResultDto<GradeDto>
+            {
+                TotalCount = 0,
+                Items = Array.Empty<GradeDto>().ToList()
+            };
+        }
+
+        // If a specific course is provided (and allowed), we can delegate to repository for paging
+        if (input.CourseId.HasValue)
+        {
+            var totalCount = await _gradeRepository.GetCountAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.GradeValueMin,
+                input.GradeValueMax,
+                input.Status
+            );
+
+            var items = await _gradeRepository.GetListWithNavigationPropertiesAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.GradeValueMin,
+                input.GradeValueMax,
+                input.Status,
+                input.Sorting,
+                input.MaxResultCount,
+                input.SkipCount
+            );
+
+            return new PagedResultDto<GradeDto>
+            {
+                TotalCount = totalCount,
+                Items = items.Select(item =>
+                {
+                    var dto = ObjectMapper.Map<Grade, GradeDto>(item.Grade);
+                    dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";
+                    dto.CourseName = item.Course.Name;
+                    return dto;
+                }).ToList()
+            };
+        }
+
+        // No specific course: aggregate across teacher's courses and page in-memory
+        var aggregated = new System.Collections.Generic.List<GradeWithNavigationProperties>();
+        foreach (var courseId in allowedCourseIds)
+        {
+            var chunk = await _gradeRepository.GetListWithNavigationPropertiesAsync(
+                input.FilterText,
+                input.StudentId,
+                courseId,
+                input.GradeValueMin,
+                input.GradeValueMax,
+                input.Status,
+                input.Sorting,
+                // get more than needed; we'll page after aggregation
+                int.MaxValue,
+                0
+            );
+            aggregated.AddRange(chunk);
+        }
+
+        // Basic sorting support (fallback to CourseName then StudentName)
+        var sorted = aggregated.AsEnumerable();
+        var sorting = input.Sorting?.Trim();
+        if (!string.IsNullOrEmpty(sorting))
+        {
+            var desc = sorting.EndsWith(" DESC", StringComparison.OrdinalIgnoreCase);
+            var key = desc ? sorting[..^5] : sorting;
+            sorted = key switch
+            {
+                nameof(Grade.GradeValue) => desc ? aggregated.OrderByDescending(x => x.Grade.GradeValue) : aggregated.OrderBy(x => x.Grade.GradeValue),
+                nameof(Grade.CreationTime) => desc ? aggregated.OrderByDescending(x => x.Grade.CreationTime) : aggregated.OrderBy(x => x.Grade.CreationTime),
+                _ => desc ? aggregated.OrderByDescending(x => x.Course.Name).ThenByDescending(x => x.Student.LastName) : aggregated.OrderBy(x => x.Course.Name).ThenBy(x => x.Student.LastName)
+            };
+        }
+        else
+        {
+            sorted = aggregated.OrderBy(x => x.Course.Name).ThenBy(x => x.Student.LastName).ThenBy(x => x.Student.FirstName);
+        }
+
+        var total = sorted.Count();
+        var paged = sorted.Skip(input.SkipCount).Take(input.MaxResultCount).ToList();
+
         return new PagedResultDto<GradeDto>
         {
-            TotalCount = totalCount,
-            Items = items.Select(item =>
+            TotalCount = total,
+            Items = paged.Select(item =>
             {
                 var dto = ObjectMapper.Map<Grade, GradeDto>(item.Grade);
                 dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";

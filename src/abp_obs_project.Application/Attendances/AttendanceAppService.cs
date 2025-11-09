@@ -39,35 +39,165 @@ public class AttendanceAppService : ApplicationService, IAttendanceAppService
     /// Gets a paginated and filtered list of attendances with student and course information
     /// Supports date range filtering for attendance reports
     /// </summary>
-    [Authorize(abp_obs_projectPermissions.Attendances.ViewAll)]
     public virtual async Task<PagedResultDto<AttendanceDto>> GetListAsync(GetAttendancesInput input)
     {
-        var totalCount = await _attendanceRepository.GetCountAsync(
-            input.FilterText,
-            input.StudentId,
-            input.CourseId,
-            input.AttendanceDateMin,
-            input.AttendanceDateMax,
-            input.IsPresent
-        );
+        // Treat users who are real teachers (Courses.Default && !Courses.ViewAll) as scoped users
+        var isTeacherScoped = (await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default))
+                              && !(await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.ViewAll));
 
-        var items = await _attendanceRepository.GetListWithNavigationPropertiesAsync(
-            input.FilterText,
-            input.StudentId,
-            input.CourseId,
-            input.AttendanceDateMin,
-            input.AttendanceDateMax,
-            input.IsPresent,
-            input.Sorting,
-            input.MaxResultCount,
-            input.SkipCount
-        );
+        // If not a scoped teacher and has Attendances.ViewAll, use global listing
+        var hasAttendanceViewAll = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Attendances.ViewAll);
+        if (!isTeacherScoped && hasAttendanceViewAll)
+        {
+            var totalCountAll = await _attendanceRepository.GetCountAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.AttendanceDateMin,
+                input.AttendanceDateMax,
+                input.IsPresent
+            );
 
-        // Map attendances with student and course information
+            var itemsAll = await _attendanceRepository.GetListWithNavigationPropertiesAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.AttendanceDateMin,
+                input.AttendanceDateMax,
+                input.IsPresent,
+                input.Sorting,
+                input.MaxResultCount,
+                input.SkipCount
+            );
+
+            return new PagedResultDto<AttendanceDto>
+            {
+                TotalCount = totalCountAll,
+                Items = itemsAll.Select(item =>
+                {
+                    var dto = ObjectMapper.Map<Attendance, AttendanceDto>(item.Attendance);
+                    dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";
+                    dto.CourseName = item.Course.Name;
+                    return dto;
+                }).ToList()
+            };
+        }
+
+        // Otherwise, scope to the current teacher's courses
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return new PagedResultDto<AttendanceDto>
+            {
+                TotalCount = 0,
+                Items = Array.Empty<AttendanceDto>().ToList()
+            };
+        }
+
+        var teacherRepo = LazyServiceProvider.LazyGetRequiredService<Teachers.ITeacherRepository>();
+        var teacher = await teacherRepo.FindByEmailAsync(email);
+        if (teacher == null)
+        {
+            return new PagedResultDto<AttendanceDto>
+            {
+                TotalCount = 0,
+                Items = Array.Empty<AttendanceDto>().ToList()
+            };
+        }
+
+        var teacherCourses = await _courseRepository.GetCoursesByTeacherIdAsync(teacher.Id);
+        var allowedCourseIds = teacherCourses.Select(c => c.Id).ToHashSet();
+
+        // If a specific courseId is provided but not allowed, return empty
+        if (input.CourseId.HasValue && !allowedCourseIds.Contains(input.CourseId.Value))
+        {
+            return new PagedResultDto<AttendanceDto>
+            {
+                TotalCount = 0,
+                Items = Array.Empty<AttendanceDto>().ToList()
+            };
+        }
+
+        // If a specific (allowed) course is given, delegate to repo for paging
+        if (input.CourseId.HasValue)
+        {
+            var totalCount = await _attendanceRepository.GetCountAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.AttendanceDateMin,
+                input.AttendanceDateMax,
+                input.IsPresent
+            );
+
+            var items = await _attendanceRepository.GetListWithNavigationPropertiesAsync(
+                input.FilterText,
+                input.StudentId,
+                input.CourseId,
+                input.AttendanceDateMin,
+                input.AttendanceDateMax,
+                input.IsPresent,
+                input.Sorting,
+                input.MaxResultCount,
+                input.SkipCount
+            );
+
+            return new PagedResultDto<AttendanceDto>
+            {
+                TotalCount = totalCount,
+                Items = items.Select(item =>
+                {
+                    var dto = ObjectMapper.Map<Attendance, AttendanceDto>(item.Attendance);
+                    dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";
+                    dto.CourseName = item.Course.Name;
+                    return dto;
+                }).ToList()
+            };
+        }
+
+        // No course filter: aggregate across teacher's courses and page in-memory
+        var aggregated = new System.Collections.Generic.List<AttendanceWithNavigationProperties>();
+        foreach (var courseId in allowedCourseIds)
+        {
+            var chunk = await _attendanceRepository.GetListWithNavigationPropertiesAsync(
+                input.FilterText,
+                input.StudentId,
+                courseId,
+                input.AttendanceDateMin,
+                input.AttendanceDateMax,
+                input.IsPresent,
+                input.Sorting,
+                int.MaxValue,
+                0
+            );
+            aggregated.AddRange(chunk);
+        }
+
+        // Basic sorting support
+        var sorted = aggregated.AsEnumerable();
+        var sorting = input.Sorting?.Trim();
+        if (!string.IsNullOrEmpty(sorting))
+        {
+            var desc = sorting.EndsWith(" DESC", StringComparison.OrdinalIgnoreCase);
+            var key = desc ? sorting[..^5] : sorting;
+            sorted = key switch
+            {
+                nameof(Attendance.AttendanceDate) => desc ? aggregated.OrderByDescending(x => x.Attendance.AttendanceDate) : aggregated.OrderBy(x => x.Attendance.AttendanceDate),
+                _ => desc ? aggregated.OrderByDescending(x => x.Course.Name).ThenByDescending(x => x.Student.LastName) : aggregated.OrderBy(x => x.Course.Name).ThenBy(x => x.Student.LastName)
+            };
+        }
+        else
+        {
+            sorted = aggregated.OrderBy(x => x.Attendance.AttendanceDate).ThenBy(x => x.Course.Name).ThenBy(x => x.Student.LastName);
+        }
+
+        var total = sorted.Count();
+        var paged = sorted.Skip(input.SkipCount).Take(input.MaxResultCount).ToList();
+
         return new PagedResultDto<AttendanceDto>
         {
-            TotalCount = totalCount,
-            Items = items.Select(item =>
+            TotalCount = total,
+            Items = paged.Select(item =>
             {
                 var dto = ObjectMapper.Map<Attendance, AttendanceDto>(item.Attendance);
                 dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";

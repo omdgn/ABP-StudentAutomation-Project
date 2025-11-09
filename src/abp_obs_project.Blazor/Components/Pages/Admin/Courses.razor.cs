@@ -41,6 +41,9 @@ public partial class Courses
         await base.OnInitializedAsync();
         await SetPermissionsAsync();
         await LoadTeachersAsync();
+        // Ensure grid is populated on first render even if ReadData isn't triggered immediately
+        CurrentPage = 1;
+        await GetCoursesAsync();
     }
 
     private async Task SetPermissionsAsync()
@@ -96,6 +99,8 @@ public partial class Courses
             TotalCount = (int)result.TotalCount;
 
             Console.WriteLine($"[Courses] Page: {CurrentPage}, Skip: {input.SkipCount}, MaxResult: {input.MaxResultCount}, TotalCount: {TotalCount}, ItemCount: {CourseList.Count}");
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {

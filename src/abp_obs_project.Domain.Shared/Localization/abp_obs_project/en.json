@@ -57,6 +57,12 @@
     "Permission:Attendances.Delete": "Delete Attendance",
     "Permission:Attendances.ViewAll": "View All Attendances",
 
+    "Permission:Enrollments": "Enrollment Management",
+    "Permission:Enrollments.Create": "Create Enrollment",
+    "Permission:Enrollments.Edit": "Edit Enrollment",
+    "Permission:Enrollments.Delete": "Delete Enrollment",
+    "Permission:Enrollments.ViewAll": "View All Enrollments",
+
     "Students": "Students",
     "NewStudent": "New Student",
     "Teachers": "Teachers",

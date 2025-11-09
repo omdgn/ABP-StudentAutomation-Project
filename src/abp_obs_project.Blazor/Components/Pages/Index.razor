@@ -10,7 +10,7 @@
 
         if (!CurrentUser.IsAuthenticated)
         {
-            NavigationManager.NavigateTo("/authentication/login", forceLoad: true);
+            NavigationManager.NavigateTo("/Account/Login", forceLoad: true);
             return;
         }
 
@@ -37,15 +37,17 @@
             return;
         }
 
-        // Check if user is Student (has no management permissions)
-        if (!hasStudentManagement && !hasTeacherManagement && !hasCourseManagement && !hasGradeManagement && !hasAttendanceManagement)
+        // Check if user has Student role by checking if they have any student-related data access
+        var hasAnyStudentPermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Students.Default);
+
+        if (hasAnyStudentPermission)
         {
-            // Student
+            // Student with role assigned
             NavigationManager.NavigateTo("/student/dashboard", forceLoad: true);
             return;
         }
 
-        // Default fallback
-        NavigationManager.NavigateTo("/authentication/login", forceLoad: true);
+        // User has no roles assigned - redirect to pending approval page
+        NavigationManager.NavigateTo("/pending-approval", forceLoad: true);
     }
 }

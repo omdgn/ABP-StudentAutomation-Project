@@ -84,6 +84,7 @@ public class CourseAppService : ApplicationService, ICourseAppService
 
         if (isSimpleListRequest)
         {
+            // Cache the full list (no pagination) and apply paging in-memory
             var cachedResult = await _cacheService.GetOrSetAsync(
                 ObsCacheKeys.Courses.List,
                 async () =>
@@ -91,7 +92,7 @@ public class CourseAppService : ApplicationService, ICourseAppService
                     var totalCount = await _courseRepository.GetCountAsync();
                     var items = await _courseRepository.GetListWithNavigationPropertiesAsync(
                         sorting: input.Sorting,
-                        maxResultCount: input.MaxResultCount
+                        maxResultCount: int.MaxValue // get all to cache full list
                     );
 
                     return new PagedResultDto<CourseDto>
@@ -109,7 +110,17 @@ public class CourseAppService : ApplicationService, ICourseAppService
                 }
             );
 
-            return cachedResult!;
+            // Apply pagination to cached full list
+            var pagedItems = cachedResult!.Items
+                .Skip(input.SkipCount)
+                .Take(input.MaxResultCount)
+                .ToList();
+
+            return new PagedResultDto<CourseDto>
+            {
+                TotalCount = cachedResult.TotalCount,
+                Items = pagedItems
+            };
         }
 
         // For filtered/paginated requests, bypass cache

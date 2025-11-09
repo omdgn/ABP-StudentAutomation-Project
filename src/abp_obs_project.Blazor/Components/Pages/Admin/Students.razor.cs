@@ -38,6 +38,9 @@ public partial class Students
     {
         await base.OnInitializedAsync();
         await SetPermissionsAsync();
+        // Ensure grid is populated on first render even if ReadData isn't triggered immediately
+        CurrentPage = 1;
+        await GetStudentsAsync();
     }
 
     private async Task SetPermissionsAsync()
@@ -80,6 +83,8 @@ public partial class Students
 
             // Debug: Console log
             Console.WriteLine($"Page: {CurrentPage}, Skip: {input.SkipCount}, MaxResult: {input.MaxResultCount}, TotalCount: {TotalCount}, ItemCount: {StudentList.Count}");
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {

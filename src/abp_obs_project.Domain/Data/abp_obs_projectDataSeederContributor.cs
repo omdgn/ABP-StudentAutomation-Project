@@ -135,9 +135,8 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
             "Teacher",
             new[]
             {
-                // Students - Teacher can create and edit students
+                // Students - gerekli temel yetkiler (ViewAll YOK)
                 "abp_obs_project.Students",
-                "abp_obs_project.Students.ViewAll",
                 "abp_obs_project.Students.Create",
                 "abp_obs_project.Students.Edit",
 
@@ -145,26 +144,34 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
                 "abp_obs_project.Courses",
                 "abp_obs_project.Courses.Edit",
 
-                // Grades - Tam yetki
+                // Grades - Tam CRUD (ViewAll YOK)
                 "abp_obs_project.Grades",
-                "abp_obs_project.Grades.ViewAll",
                 "abp_obs_project.Grades.Create",
                 "abp_obs_project.Grades.Edit",
                 "abp_obs_project.Grades.Delete",
 
-                // Attendances - Tam yetki
+                // Attendances - Tam CRUD (ViewAll YOK)
                 "abp_obs_project.Attendances",
-                "abp_obs_project.Attendances.ViewAll",
                 "abp_obs_project.Attendances.Create",
                 "abp_obs_project.Attendances.Edit",
                 "abp_obs_project.Attendances.Delete",
 
-                // Enrollments - Tam yetki (öğrenci kaydı yönetimi için)
+                // Enrollments - yönetim (ViewAll YOK)
                 "abp_obs_project.Enrollments",
-                "abp_obs_project.Enrollments.ViewAll",
                 "abp_obs_project.Enrollments.Create",
                 "abp_obs_project.Enrollments.Edit",
                 "abp_obs_project.Enrollments.Delete"
+            });
+
+        // Explicitly revoke broad ViewAll permissions from Teacher (in case previously granted)
+        await RevokePermissionsFromExistingRoleAsync(
+            "Teacher",
+            new[]
+            {
+                "abp_obs_project.Students.ViewAll",
+                "abp_obs_project.Grades.ViewAll",
+                "abp_obs_project.Attendances.ViewAll",
+                "abp_obs_project.Enrollments.ViewAll"
             });
 
         // Student Role
@@ -237,6 +244,25 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
                 RolePermissionValueProvider.ProviderName,
                 existingRole.Name,
                 true
+            );
+        }
+    }
+
+    private async Task RevokePermissionsFromExistingRoleAsync(string roleName, string[] permissions)
+    {
+        var existingRole = await _roleRepository.FindByNormalizedNameAsync(roleName.ToUpperInvariant());
+        if (existingRole == null)
+        {
+            return;
+        }
+
+        foreach (var permission in permissions)
+        {
+            await _permissionManager.SetAsync(
+                permission,
+                RolePermissionValueProvider.ProviderName,
+                existingRole.Name,
+                false
             );
         }
     }

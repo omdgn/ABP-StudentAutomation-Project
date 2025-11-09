@@ -151,8 +151,7 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
             input.PhoneNumber
         );
 
-        // Invalidate cache after creation
-        await _cacheService.RemoveAsync(ObsCacheKeys.Teachers.List);
+        // Cache invalidation is handled by TeacherEntityChangedEventHandler
 
         return ObjectMapper.Map<Teacher, TeacherDto>(teacher);
     }
@@ -172,8 +171,7 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
             input.PhoneNumber
         );
 
-        // Invalidate cache after update
-        await _cacheService.RemoveAsync(ObsCacheKeys.Teachers.List);
+        // Cache invalidation is handled by TeacherEntityChangedEventHandler
 
         return ObjectMapper.Map<Teacher, TeacherDto>(teacher);
     }
@@ -225,8 +223,7 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
     {
         await _teacherRepository.DeleteAsync(id);
 
-        // Invalidate cache after deletion
-        await _cacheService.RemoveAsync(ObsCacheKeys.Teachers.List);
+        // Cache invalidation is handled by TeacherEntityChangedEventHandler
     }
 
     /// <summary>
@@ -303,8 +300,7 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
             throw;
         }
 
-        // Step 4: Invalidate cache after creation
-        await _cacheService.RemoveAsync(ObsCacheKeys.Teachers.List);
+        // Step 4: Cache invalidation is handled by TeacherEntityChangedEventHandler
 
         return ObjectMapper.Map<Teacher, TeacherDto>(teacher);
     }

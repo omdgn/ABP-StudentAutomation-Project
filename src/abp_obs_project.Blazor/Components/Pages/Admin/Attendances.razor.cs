@@ -50,6 +50,9 @@ public partial class Attendances
         await base.OnInitializedAsync();
         await SetPermissionsAsync();
         await LoadLookupsAsync();
+        // Ensure grid is populated on first render even if ReadData isn't triggered immediately
+        CurrentPage = 1;
+        await GetAttendancesAsync();
     }
 
     private async Task SetPermissionsAsync()
@@ -113,6 +116,8 @@ public partial class Attendances
             var result = await AttendanceAppService.GetListAsync(input);
             AttendanceList = result.Items;
             TotalCount = (int)result.TotalCount;
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {

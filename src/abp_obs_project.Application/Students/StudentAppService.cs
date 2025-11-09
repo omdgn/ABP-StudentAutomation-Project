@@ -158,8 +158,7 @@ public class StudentAppService : ApplicationService, IStudentAppService
             input.Phone
         );
 
-        // Invalidate cache after creation
-        await _cacheService.RemoveAsync(ObsCacheKeys.Students.List);
+        // Cache invalidation is handled by StudentEntityChangedEventHandler
 
         // Publish distributed event
         await _distributedEventBus.PublishAsync(new StudentCreatedEto
@@ -281,8 +280,7 @@ public class StudentAppService : ApplicationService, IStudentAppService
             throw;
         }
 
-        // Step 4: Invalidate cache after creation
-        await _cacheService.RemoveAsync(ObsCacheKeys.Students.List);
+        // Step 4: Cache invalidation is handled by StudentEntityChangedEventHandler
 
         // Step 5: Publish distributed event
         await _distributedEventBus.PublishAsync(new StudentCreatedEto
@@ -314,8 +312,7 @@ public class StudentAppService : ApplicationService, IStudentAppService
             input.Phone
         );
 
-        // Invalidate cache after update
-        await _cacheService.RemoveAsync(ObsCacheKeys.Students.List);
+        // Cache invalidation is handled by StudentEntityChangedEventHandler
 
         // Publish distributed event
         await _distributedEventBus.PublishAsync(new StudentUpdatedEto
@@ -338,8 +335,7 @@ public class StudentAppService : ApplicationService, IStudentAppService
 
         await _studentRepository.DeleteAsync(id);
 
-        // Invalidate cache after deletion
-        await _cacheService.RemoveAsync(ObsCacheKeys.Students.List);
+        // Cache invalidation is handled by StudentEntityChangedEventHandler
 
         // Publish distributed event
         await _distributedEventBus.PublishAsync(new StudentDeletedEto

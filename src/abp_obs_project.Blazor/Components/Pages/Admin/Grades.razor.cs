@@ -108,6 +108,8 @@ public partial class Grades
             var result = await GradeAppService.GetListAsync(input);
             GradeList = result.Items;
             TotalCount = (int)result.TotalCount;
+
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
