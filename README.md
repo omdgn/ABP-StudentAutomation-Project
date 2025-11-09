@@ -353,16 +353,3 @@ await _distributedEventBus.PublishAsync(new GradeCreatedEto { GradeId = grade.Id
 
 ---
 
-## Katkı ve Geliştirme
-- Kod stili mevcut yapıya uygun tutulmalı; gereksiz geniş değişikliklerden kaçının.
-- Yeni endpoint eklerken Swagger çakışmalarına dikkat edin.
-- README’de değişiklik yaparken dosya yolu referanslarını doğru tutun.
-
-Eklenen önemli senaryolar ve notlar:
-- Öğrenci oluştururken Identity kullanıcı hesabı ile birlikte oluşturma: `CreateStudentWithUserAsync` (StudentAppService)
-- Öğrencinin kendi derslerini sayfalı ve filtreli getirme: `GetMyCoursesAsync(GetMyCoursesInput)` (CourseAppService)
-- Girişte rol‑temelli yönlendirme: `Components/Pages/Index.razor`
-
----
-
-Bu belge güncel proje durumunu ve yol haritasını yansıtır. Eksik gördüğünüz bölüm veya iyileştirme önerileriniz için pull request açabilirsiniz.

@@ -49,6 +49,9 @@ public partial class Grades
         await base.OnInitializedAsync();
         await SetPermissionsAsync();
         await LoadLookupsAsync();
+        // Ensure grid is populated on first render even if ReadData isn't triggered immediately
+        CurrentPage = 1;
+        await GetGradesAsync();
     }
 
     private async Task SetPermissionsAsync()
