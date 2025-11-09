@@ -32,24 +32,16 @@ public class StudentMenuContributor : IMenuContributor
             return;
         }
 
-        // Check if user has basic student permissions
-        var hasStudents = await context.IsGrantedAsync(abp_obs_projectPermissions.Students.Default);
-        var hasCourses = await context.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default);
-        var hasGrades = await context.IsGrantedAsync(abp_obs_projectPermissions.Grades.Default);
-        var hasAttendances = await context.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Default);
+        // If user is authenticated and doesn't have admin/teacher permissions, show student menu
+        // This will show the menu for anyone with "student" role or no special permissions
 
-        // Student must have at least basic view permissions
-        if (!hasStudents && !hasCourses && !hasGrades && !hasAttendances)
-        {
-            return;
-        }
+        // IMPORTANT: Clear all menu items first to ensure only student menu is shown
+        context.Menu.Items.Clear();
 
-        // User is a student, show student menu
         // Add Student menu items
 
         // Dashboard (Home)
-        context.Menu.Items.Insert(
-            0,
+        context.Menu.AddItem(
             new ApplicationMenuItem(
                 abp_obs_projectMenus.StudentDashboard,
                 l["Menu:StudentDashboard"],
@@ -60,8 +52,7 @@ public class StudentMenuContributor : IMenuContributor
         );
 
         // My Courses
-        context.Menu.Items.Insert(
-            1,
+        context.Menu.AddItem(
             new ApplicationMenuItem(
                 abp_obs_projectMenus.StudentMyCourses,
                 l["Menu:StudentMyCourses"],
@@ -72,8 +63,7 @@ public class StudentMenuContributor : IMenuContributor
         );
 
         // My Grades
-        context.Menu.Items.Insert(
-            2,
+        context.Menu.AddItem(
             new ApplicationMenuItem(
                 abp_obs_projectMenus.StudentGrades,
                 l["Menu:StudentGrades"],
@@ -84,8 +74,7 @@ public class StudentMenuContributor : IMenuContributor
         );
 
         // My Attendances
-        context.Menu.Items.Insert(
-            3,
+        context.Menu.AddItem(
             new ApplicationMenuItem(
                 abp_obs_projectMenus.StudentAttendances,
                 l["Menu:StudentAttendances"],
@@ -96,8 +85,7 @@ public class StudentMenuContributor : IMenuContributor
         );
 
         // Profile
-        context.Menu.Items.Insert(
-            4,
+        context.Menu.AddItem(
             new ApplicationMenuItem(
                 abp_obs_projectMenus.StudentProfile,
                 l["Menu:StudentProfile"],
