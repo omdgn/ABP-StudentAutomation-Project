@@ -24,6 +24,10 @@ Bu rehber; mimariyi, kurulum/sunum adımlarını, roller–izinleri, önemli dos
 
 ---
 
+# Login-Register
+- Kullanıcı kayıt olduktan sonra admin tarafından yetki verilmeyi bekler. Obs tarzı bir sistem için en mantıklı kayıt aşamasının bu olduğunu düşündüm. 
+
+
 ## Genel Bakış
 - Proje, ABP Framework üzerine inşa edilmiş tam yığın (full‑stack) bir “Öğrenci Otomasyon Sistemi”dir.
 - Kimlik doğrulama: OpenIddict + ABP Account modülü.
