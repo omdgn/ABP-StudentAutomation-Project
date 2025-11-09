@@ -25,12 +25,12 @@
             return;
         }
 
-        // Check if user is Teacher
-        var hasCoursePermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default);
-        var hasGradePermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Grades.Default);
-        var hasAttendancePermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Default);
+        // Check if user is Teacher (has any management-level permissions like ViewAll)
+        var hasCourseManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.ViewAll);
+        var hasGradeManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Grades.ViewAll);
+        var hasAttendanceManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Attendances.ViewAll);
 
-        if (hasCoursePermission || hasGradePermission || hasAttendancePermission)
+        if (hasCourseManagement || hasGradeManagement || hasAttendanceManagement)
         {
             // Teacher
             NavigationManager.NavigateTo("/teacher/dashboard", forceLoad: true);
@@ -38,7 +38,7 @@
         }
 
         // Check if user is Student (has no management permissions)
-        if (!hasStudentManagement && !hasTeacherManagement && !hasCoursePermission && !hasGradePermission && !hasAttendancePermission)
+        if (!hasStudentManagement && !hasTeacherManagement && !hasCourseManagement && !hasGradeManagement && !hasAttendanceManagement)
         {
             // Student
             NavigationManager.NavigateTo("/student/dashboard", forceLoad: true);

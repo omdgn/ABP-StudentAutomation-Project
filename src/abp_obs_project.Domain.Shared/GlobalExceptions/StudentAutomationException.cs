@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Volo.Abp;
 
 namespace abp_obs_project.GlobalExceptions;
@@ -17,12 +18,13 @@ public class StudentAutomationException : IStudentAutomationException
     /// <param name="message">Error message</param>
     /// <param name="code">Error code (e.g., STD-001, TCH-001)</param>
     /// <param name="condition">Condition to check</param>
-    public static void ThrowIf(string? message, string? code, bool condition = true)
+    public static void ThrowIf(string? message, string? code, [DoesNotReturnIf(true)] bool condition = true)
     {
         if (condition)
             ThrowException(message, code);
     }
 
+    [DoesNotReturn]
     private static void ThrowException(string? message, string? code)
         => throw new UserFriendlyException(message ?? DEFAULT_ERROR_MESSAGE, code ?? DEFAULT_ERROR_CODE);
 }

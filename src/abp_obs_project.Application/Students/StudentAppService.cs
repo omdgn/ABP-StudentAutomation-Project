@@ -129,6 +129,22 @@ public class StudentAppService : ApplicationService, IStudentAppService
         return ObjectMapper.Map<Student, StudentDto>(student);
     }
 
+    /// <summary>
+    /// Gets the Student associated with the current user (by email).
+    /// Does not require ViewAll; limited to self access.
+    /// </summary>
+    public virtual async Task<StudentDto?> GetMeAsync()
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var student = await _studentRepository.FindByEmailAsync(email);
+        return student == null ? null : ObjectMapper.Map<Student, StudentDto>(student);
+    }
+
     [Authorize(abp_obs_projectPermissions.Students.Create)]
     public virtual async Task<StudentDto> CreateAsync(CreateUpdateStudentDto input)
     {
@@ -155,6 +171,49 @@ public class StudentAppService : ApplicationService, IStudentAppService
             StudentNumber = student.StudentNumber,
             CreationTime = Clock.Now
         });
+
+        return ObjectMapper.Map<Student, StudentDto>(student);
+    }
+
+    /// <summary>
+    /// Updates current student's profile and syncs Identity user basic info.
+    /// </summary>
+    public virtual async Task<StudentDto> UpdateMyProfileAsync(UpdateMyProfileDto input)
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new Volo.Abp.Authorization.AbpAuthorizationException("Not authenticated");
+        }
+
+        // Load student by email
+        var student = await _studentRepository.FindByEmailAsync(email);
+        if (student == null)
+        {
+            throw new Volo.Abp.Authorization.AbpAuthorizationException("Student record not found for current user");
+        }
+
+        // Update domain entity
+        student.SetFirstName(input.FirstName);
+        student.SetLastName(input.LastName);
+        student.SetBirthDate(input.BirthDate);
+        student.SetGender(input.Gender);
+        student.SetPhoneNumber(input.Phone);
+
+        student = await _studentRepository.UpdateAsync(student);
+
+        // Sync Identity user basic info
+        var identityUser = await _identityUserManager.FindByEmailAsync(email);
+        if (identityUser != null)
+        {
+            identityUser.Name = input.FirstName;
+            identityUser.Surname = input.LastName;
+            if (!string.IsNullOrWhiteSpace(input.Phone))
+            {
+                identityUser.SetPhoneNumber(input.Phone, false);
+            }
+            await _identityUserManager.UpdateAsync(identityUser);
+        }
 
         return ObjectMapper.Map<Student, StudentDto>(student);
     }

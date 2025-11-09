@@ -22,4 +22,14 @@ public interface ITeacherAppService
     /// Creates a new teacher along with their identity user account for authentication
     /// </summary>
     Task<TeacherDto> CreateTeacherWithUserAsync(CreateTeacherWithUserDto input);
+
+    /// <summary>
+    /// Gets the Teacher associated with the current user (by email).
+    /// </summary>
+    Task<TeacherDto?> GetMeAsync();
+
+    /// <summary>
+    /// Updates the profile of the current teacher and syncs Identity user basic info.
+    /// </summary>
+    Task<TeacherDto> UpdateMyProfileAsync(UpdateMyTeacherProfileDto input);
 }

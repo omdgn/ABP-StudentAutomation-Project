@@ -21,4 +21,9 @@ public interface IAttendanceAppService
     /// Gets attendance rate (percentage) for a specific student in a specific course
     /// </summary>
     Task<double> GetAttendanceRateAsync(Guid studentId, Guid courseId);
+
+    /// <summary>
+    /// Lists attendances for the currently logged-in student.
+    /// </summary>
+    Task<ListResultDto<AttendanceDto>> GetMyAttendancesAsync();
 }

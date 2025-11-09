@@ -20,7 +20,7 @@ public class abp_obs_projectMenus
     public const string TeacherMyStudents = Prefix + ".TeacherMyStudents";
     public const string TeacherGrades = Prefix + ".TeacherGrades";
     public const string TeacherAttendances = Prefix + ".TeacherAttendances";
-    public const string TeacherSettings = Prefix + ".TeacherSettings";
+    public const string TeacherMyProfile = Prefix + ".TeacherMyProfile";
 
     // Student Menu
     public const string StudentDashboard = Prefix + ".StudentDashboard";

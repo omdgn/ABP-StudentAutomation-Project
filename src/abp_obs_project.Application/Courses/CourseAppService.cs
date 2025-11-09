@@ -166,6 +166,134 @@ public class CourseAppService : ApplicationService, ICourseAppService
     }
 
     /// <summary>
+    /// Returns the list of courses that the current student is enrolled in.
+    /// </summary>
+    public virtual async Task<ListResultDto<CourseDto>> GetMyCoursesAsync()
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return new ListResultDto<CourseDto>(Array.Empty<CourseDto>());
+        }
+
+        // Find student by email
+        var studentRepo = LazyServiceProvider.LazyGetRequiredService<Students.IStudentRepository>();
+        var gradeRepo = LazyServiceProvider.LazyGetRequiredService<Grades.IGradeRepository>();
+
+        var student = await studentRepo.FindByEmailAsync(email);
+        if (student == null)
+        {
+            return new ListResultDto<CourseDto>(Array.Empty<CourseDto>());
+        }
+
+        var grades = await gradeRepo.GetListAsync(studentId: student.Id);
+        var courseIds = grades.Select(g => g.CourseId).Distinct().ToList();
+        if (!courseIds.Any())
+        {
+            return new ListResultDto<CourseDto>(Array.Empty<CourseDto>());
+        }
+
+        var courses = await _courseRepository.GetListAsync(x => courseIds.Contains(x.Id));
+        var dtos = courses.Select(c => ObjectMapper.Map<Course, CourseDto>(c)).ToList();
+        return new ListResultDto<CourseDto>(dtos);
+    }
+
+    /// <summary>
+    /// Returns a paged and filtered list of the current student's courses.
+    /// </summary>
+    public virtual async Task<PagedResultDto<CourseDto>> GetMyCoursesAsync(GetMyCoursesInput input)
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return new PagedResultDto<CourseDto>
+            {
+                TotalCount = 0,
+                Items = new List<CourseDto>()
+            };
+        }
+
+        var studentRepo = LazyServiceProvider.LazyGetRequiredService<Students.IStudentRepository>();
+        var gradeRepo = LazyServiceProvider.LazyGetRequiredService<Grades.IGradeRepository>();
+
+        var student = await studentRepo.FindByEmailAsync(email);
+        if (student == null)
+        {
+            return new PagedResultDto<CourseDto>
+            {
+                TotalCount = 0,
+                Items = new List<CourseDto>()
+            };
+        }
+
+        var grades = await gradeRepo.GetListAsync(studentId: student.Id);
+        var courseIds = grades.Select(g => g.CourseId).Distinct().ToList();
+        if (!courseIds.Any())
+        {
+            return new PagedResultDto<CourseDto>
+            {
+                TotalCount = 0,
+                Items = new List<CourseDto>()
+            };
+        }
+
+        // Base list limited to student's courses
+        var list = await _courseRepository.GetListAsync(x => courseIds.Contains(x.Id));
+
+        // Filters
+        if (!string.IsNullOrWhiteSpace(input.FilterText))
+        {
+            var s = input.FilterText.Trim();
+            list = list.Where(c =>
+                (!string.IsNullOrEmpty(c.Name) && c.Name.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(c.Code) && c.Code.Contains(s, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+        if (input.Status.HasValue)
+        {
+            list = list.Where(c => c.Status == input.Status.Value).ToList();
+        }
+        if (input.CreditsMin.HasValue)
+        {
+            list = list.Where(c => c.Credits >= input.CreditsMin.Value).ToList();
+        }
+        if (input.CreditsMax.HasValue)
+        {
+            list = list.Where(c => c.Credits <= input.CreditsMax.Value).ToList();
+        }
+
+        // Sorting
+        IEnumerable<Course> sorted = list;
+        var sorting = input.Sorting?.Trim();
+        if (!string.IsNullOrEmpty(sorting))
+        {
+            var desc = sorting.EndsWith(" DESC", StringComparison.OrdinalIgnoreCase);
+            var key = desc ? sorting[..^5] : sorting;
+            sorted = key switch
+            {
+                nameof(Course.Code) => desc ? list.OrderByDescending(x => x.Code) : list.OrderBy(x => x.Code),
+                nameof(Course.Credits) => desc ? list.OrderByDescending(x => x.Credits) : list.OrderBy(x => x.Credits),
+                nameof(Course.CreationTime) => desc ? list.OrderByDescending(x => x.CreationTime) : list.OrderBy(x => x.CreationTime),
+                _ => desc ? list.OrderByDescending(x => x.Name) : list.OrderBy(x => x.Name)
+            };
+        }
+        else
+        {
+            sorted = list.OrderBy(x => x.Code);
+        }
+
+        var totalCount = sorted.Count();
+        var paged = sorted.Skip(input.SkipCount).Take(input.MaxResultCount).ToList();
+        var dtos = paged.Select(c => ObjectMapper.Map<Course, CourseDto>(c)).ToList();
+
+        return new PagedResultDto<CourseDto>
+        {
+            TotalCount = totalCount,
+            Items = dtos
+        };
+    }
+
+    /// <summary>
     /// Creates a new course using domain manager for business rules
     /// CourseManager validates teacher existence
     /// </summary>

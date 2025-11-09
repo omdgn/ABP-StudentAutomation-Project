@@ -123,6 +123,21 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
     }
 
     /// <summary>
+    /// Gets the Teacher associated with the current user.
+    /// </summary>
+    public virtual async Task<TeacherDto?> GetMeAsync()
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var teacher = await _teacherRepository.FindByEmailAsync(email);
+        return teacher == null ? null : ObjectMapper.Map<Teacher, TeacherDto>(teacher);
+    }
+
+    /// <summary>
     /// Creates a new teacher using domain manager for business rules
     /// </summary>
     [Authorize(abp_obs_projectPermissions.Teachers.Create)]
@@ -159,6 +174,45 @@ public class TeacherAppService : ApplicationService, ITeacherAppService
 
         // Invalidate cache after update
         await _cacheService.RemoveAsync(ObsCacheKeys.Teachers.List);
+
+        return ObjectMapper.Map<Teacher, TeacherDto>(teacher);
+    }
+
+    /// <summary>
+    /// Updates current teacher's profile and syncs Identity user basic info.
+    /// </summary>
+    public virtual async Task<TeacherDto> UpdateMyProfileAsync(UpdateMyTeacherProfileDto input)
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new Volo.Abp.Authorization.AbpAuthorizationException("Not authenticated");
+        }
+
+        var teacher = await _teacherRepository.FindByEmailAsync(email);
+        if (teacher == null)
+        {
+            throw new Volo.Abp.Authorization.AbpAuthorizationException("Teacher record not found for current user");
+        }
+
+        teacher.SetFirstName(input.FirstName);
+        teacher.SetLastName(input.LastName);
+        teacher.SetDepartment(input.Department);
+        teacher.SetPhoneNumber(input.PhoneNumber);
+
+        teacher = await _teacherRepository.UpdateAsync(teacher);
+
+        var identityUser = await _identityUserManager.FindByEmailAsync(email);
+        if (identityUser != null)
+        {
+            identityUser.Name = input.FirstName;
+            identityUser.Surname = input.LastName;
+            if (!string.IsNullOrWhiteSpace(input.PhoneNumber))
+            {
+                identityUser.SetPhoneNumber(input.PhoneNumber, false);
+            }
+            await _identityUserManager.UpdateAsync(identityUser);
+        }
 
         return ObjectMapper.Map<Teacher, TeacherDto>(teacher);
     }

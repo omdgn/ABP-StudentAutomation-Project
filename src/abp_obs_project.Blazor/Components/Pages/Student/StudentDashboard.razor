@@ -239,7 +239,13 @@
             <div class="col-12">
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    @L["Dashboard:NoAccessMessage"]
+                    <strong>Access Denied:</strong> This page is only available for students.
+                    <br/><br/>
+                    <strong>Current User Email:</strong> @CurrentUser.Email
+                    <br/>
+                    <strong>Reason:</strong> No student record found with this email address in the system.
+                    <br/><br/>
+                    <em>Please contact your administrator to create a student record with your email address.</em>
                 </div>
             </div>
         </div>

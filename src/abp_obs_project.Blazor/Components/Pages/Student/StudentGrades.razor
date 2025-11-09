@@ -1,0 +1,219 @@
+@page "/student/grades"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Grades
+@using abp_obs_project.Courses
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@attribute [Authorize]
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-star me-2"></i>@L["Menu:StudentGrades"]
+            </h1>
+        </div>
+    </div>
+
+    @if (!IsStudent)
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            @L["Dashboard:NoAccessMessage"]
+        </div>
+    }
+    else
+    {
+        @* Grade Summary Cards *@
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">@L["TotalCourses"]</h6>
+                        <h2 class="text-primary mb-0">@TotalCourses</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">@L["GPA"]</h6>
+                        <h2 class="text-success mb-0">@AverageGrade.ToString("F2")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">@L["HighestGrade"]</h6>
+                        <h2 class="text-info mb-0">@HighestGrade.ToString("F1")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">@L["LowestGrade"]</h6>
+                        <h2 class="text-warning mb-0">@LowestGrade.ToString("F1")</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Filter Section *@
+        <div class="row mb-3">
+            <div class="col-12 col-md-6">
+                <Field>
+                    <FieldLabel>@L["FilterByCourse"]</FieldLabel>
+                    <Select TValue="string" SelectedValue="@SelectedCourseFilter" SelectedValueChanged="OnCourseFilterChanged">
+                        <SelectItem TValue="string" Value="@string.Empty">@L["AllCourses"]</SelectItem>
+                        @foreach (var course in AllCourses)
+                        {
+                            <SelectItem TValue="string" Value="@course.Id.ToString()">@course.Name (@course.Code)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            </div>
+        </div>
+
+        @* Grades Table *@
+        @if (FilteredGrades == null || !FilteredGrades.Any())
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                @L["Student:NoGradesYet"]
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">@L["MyGrades"]</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>@L["CourseCode"]</th>
+                                    <th>@L["CourseName"]</th>
+                                    <th>@L["Grade"]</th>
+                                    <th>@L["Status"]</th>
+                                    <th>@L["Comments"]</th>
+                                    <th>@L["Date"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var grade in FilteredGrades)
+                                {
+                                    var course = AllCourses.FirstOrDefault(c => c.Id == grade.CourseId);
+                                    <tr>
+                                        <td>@(course?.Code ?? "-")</td>
+                                        <td>@grade.CourseName</td>
+                                        <td>
+                                            @if (grade.GradeValue > 0)
+                                            {
+                                                <span class="badge @GetGradeBadgeClass(grade.GradeValue)">
+                                                    @grade.GradeValue.ToString("F1")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @{
+                                                var statusText = grade.Status == EnumGradeStatus.Passed
+                                                    ? "Passed"
+                                                    : grade.Status == EnumGradeStatus.Failed
+                                                        ? "Failed"
+                                                        : "-";
+                                            }
+                                            <span class="badge @GetGradeStatusBadgeClass(grade.Status)">@statusText</span>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(grade.Comments))
+                                            {
+                                                <span class="text-muted small">@grade.Comments</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                @grade.CreationTime.ToShortDateString()
+                                            </small>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            @* Grade Distribution Chart *@
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">@L["GradeDistribution"]</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6 col-md-3">
+                                    <div class="mb-2">
+                                        <h4 class="text-success">@ExcellentCount</h4>
+                                        <p class="text-muted mb-0">@L["Excellent"] (85-100)</p>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="mb-2">
+                                        <h4 class="text-primary">@GoodCount</h4>
+                                        <p class="text-muted mb-0">@L["Good"] (70-84)</p>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="mb-2">
+                                        <h4 class="text-warning">@SatisfactoryCount</h4>
+                                        <p class="text-muted mb-0">@L["Satisfactory"] (60-69)</p>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="mb-2">
+                                        <h4 class="text-danger">@FailCount</h4>
+                                        <p class="text-muted mb-0">@L["Fail"] (0-59)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private string GetGradeBadgeClass(double grade)
+    {
+        if (grade >= 85) return "bg-success";
+        if (grade >= 70) return "bg-primary";
+        if (grade >= 60) return "bg-warning";
+        return "bg-danger";
+    }
+
+    private string GetGradeStatusBadgeClass(EnumGradeStatus status)
+    {
+        return status switch
+        {
+            EnumGradeStatus.Incomplete => "bg-warning",
+            EnumGradeStatus.Passed => "bg-success",
+            EnumGradeStatus.Failed => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

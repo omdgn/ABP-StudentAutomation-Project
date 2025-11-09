@@ -9,6 +9,7 @@ using abp_obs_project.Students;
 using abp_obs_project.Grades;
 using abp_obs_project.Attendances;
 using abp_obs_project.Permissions;
+using Volo.Abp.Domain.Repositories;
 
 namespace abp_obs_project.Blazor.Components.Pages.Student;
 
@@ -32,12 +33,19 @@ public partial class StudentDashboard
     {
         await base.OnInitializedAsync();
 
-        // Check if user is a student
-        IsStudent = await IsStudentAsync();
-
-        if (IsStudent && CurrentStudentId.HasValue)
+        // Check if user is authenticated
+        if (CurrentUser.Id.HasValue)
         {
-            await LoadStatisticsAsync();
+            IsStudent = await IsStudentAsync();
+
+            if (IsStudent && CurrentStudentId.HasValue)
+            {
+                await LoadStatisticsAsync();
+            }
+        }
+        else
+        {
+            IsStudent = false;
         }
     }
 
@@ -51,28 +59,8 @@ public partial class StudentDashboard
                 return false;
             }
 
-            // Check if user has admin or teacher permissions (if yes, not a student)
-            var hasStudentsViewAll = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Students.ViewAll);
-            var hasTeachersViewAll = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Teachers.ViewAll);
-            var hasGradesCreate = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Grades.Create);
-            var hasAttendancesCreate = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Create);
-            var hasCoursesCreate = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.Create);
-
-            // If user has admin or teacher permissions, they are NOT a student
-            if (hasStudentsViewAll || hasTeachersViewAll || hasGradesCreate || hasAttendancesCreate || hasCoursesCreate)
-            {
-                return false;
-            }
-
-            // Try to find student record by email
-            var studentsResult = await StudentAppService.GetListAsync(new GetStudentsInput
-            {
-                MaxResultCount = 1000
-            });
-
-            var student = studentsResult.Items.FirstOrDefault(s =>
-                s.Email != null &&
-                s.Email.Equals(CurrentUser.Email, StringComparison.OrdinalIgnoreCase));
+            // Try to find student record using AppService (self only)
+            var student = await StudentAppService.GetMeAsync();
 
             if (student != null)
             {
@@ -98,14 +86,9 @@ public partial class StudentDashboard
                 return;
             }
 
-            // Load grades for current student
-            var gradesResult = await GradeAppService.GetListAsync(new GetGradesInput
-            {
-                StudentId = CurrentStudentId.Value,
-                MaxResultCount = 1000
-            });
-
-            var allGrades = gradesResult.Items.ToList();
+            // Load grades for current student using AppService
+            var myGradesResult = await GradeAppService.GetMyGradesAsync();
+            var allGrades = myGradesResult.Items.ToList();
 
             // Calculate total enrolled courses (unique courses with grades)
             var enrolledCourseIds = allGrades.Select(g => g.CourseId).Distinct().ToList();
@@ -124,31 +107,39 @@ public partial class StudentDashboard
             }
 
             // Get recent grades (last 5 grades with value > 0)
-            RecentGrades = allGrades
+            // We need to load course names, so we'll convert to DTOs
+            var recentGradeEntities = allGrades
                 .Where(g => g.GradeValue > 0)
                 .OrderByDescending(g => g.CreationTime)
                 .Take(5)
                 .ToList();
 
-            // Load attendances for current student
-            var attendancesResult = await AttendanceAppService.GetListAsync(new GetAttendancesInput
+            RecentGrades = new List<GradeDto>();
+            foreach (var grade in recentGradeEntities)
             {
-                StudentId = CurrentStudentId.Value,
-                MaxResultCount = 1000
-            });
+                RecentGrades.Add(new GradeDto
+                {
+                    Id = grade.Id,
+                    StudentId = grade.StudentId,
+                    CourseId = grade.CourseId,
+                    CourseName = grade.CourseName,
+                    GradeValue = grade.GradeValue,
+                    Comments = grade.Comments
+                });
+            }
+
+            // Load attendances for current student using AppService
+            var attendancesResult = await AttendanceAppService.GetMyAttendancesAsync();
+            var attendances = attendancesResult.Items.ToList();
 
             // Count absences (where IsPresent = false)
-            TotalAbsences = attendancesResult.Items.Count(a => !a.IsPresent);
+            TotalAbsences = attendances.Count(a => !a.IsPresent);
 
             // Load recent courses
             if (enrolledCourseIds.Any())
             {
-                var coursesResult = await CourseAppService.GetListAsync(new GetCoursesInput
-                {
-                    MaxResultCount = 1000
-                });
-
-                RecentCourses = coursesResult.Items
+                var myCourses = await CourseAppService.GetMyCoursesAsync();
+                RecentCourses = myCourses.Items
                     .Where(c => enrolledCourseIds.Contains(c.Id))
                     .OrderByDescending(c => c.CreationTime)
                     .Take(5)

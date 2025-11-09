@@ -16,4 +16,9 @@ public interface IGradeAppService
     /// Gets average grade for a specific student
     /// </summary>
     Task<double> GetAverageGradeByStudentAsync(Guid studentId);
+
+    /// <summary>
+    /// Lists grades for the currently logged-in student.
+    /// </summary>
+    Task<ListResultDto<GradeDto>> GetMyGradesAsync();
 }

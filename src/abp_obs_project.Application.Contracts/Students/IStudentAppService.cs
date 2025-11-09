@@ -16,4 +16,16 @@ public interface IStudentAppService
     /// Creates a new student along with their identity user account for authentication
     /// </summary>
     Task<StudentDto> CreateStudentWithUserAsync(CreateStudentWithUserDto input);
+
+    /// <summary>
+    /// Gets the Student associated with the currently logged-in user.
+    /// Returns null if no matching student record exists.
+    /// </summary>
+    Task<StudentDto?> GetMeAsync();
+
+    /// <summary>
+    /// Updates the profile of the currently logged-in student.
+    /// Also syncs basic fields to the Identity user (name, surname, phone).
+    /// </summary>
+    Task<StudentDto> UpdateMyProfileAsync(UpdateMyProfileDto input);
 }

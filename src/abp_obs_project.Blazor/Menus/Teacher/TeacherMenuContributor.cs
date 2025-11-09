@@ -110,14 +110,14 @@ public class TeacherMenuContributor : IMenuContributor
             );
         }
 
-        // Settings
+        // My Profile
         context.Menu.Items.Insert(
             5,
             new ApplicationMenuItem(
-                abp_obs_projectMenus.TeacherSettings,
-                l["Menu:Settings"],
-                "/teacher/settings",
-                icon: "fas fa-cog",
+                abp_obs_projectMenus.TeacherMyProfile,
+                l["Menu:TeacherProfile"],
+                "/teacher/my-profile",
+                icon: "fas fa-user",
                 order: 5
             )
         );

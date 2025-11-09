@@ -1,0 +1,211 @@
+@page "/student/my-courses"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Courses
+@using abp_obs_project.Grades
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@attribute [Authorize]
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-book me-2"></i>@L["Menu:StudentMyCourses"]
+            </h1>
+        </div>
+    </div>
+
+    @if (!IsStudent)
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            @L["Dashboard:NoAccessMessage"]
+        </div>
+    }
+    else
+    {
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label">@L["Search"]</label>
+                <input class="form-control" placeholder="@L["SearchByNameCodeTeacher"]" value="@SearchText" @oninput="OnSearchChanged" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">@L["Status"]</label>
+                <select class="form-select" @onchange="OnStatusChanged">
+                    <option value="">@L["All"]</option>
+                    <option value="NotStarted">@L["Enum:CourseStatus.NotStarted"]</option>
+                    <option value="InProgress">@L["Enum:CourseStatus.InProgress"]</option>
+                    <option value="Completed">@L["Enum:CourseStatus.Completed"]</option>
+                    <option value="Cancelled">@L["Enum:CourseStatus.Cancelled"]</option>
+                </select>
+            </div>
+            <div class="col-3 col-md-2">
+                <label class="form-label">@L["MinCredits"]</label>
+                <input type="number" class="form-control" value="@MinCredits" @oninput="OnMinCreditsChanged" />
+            </div>
+            <div class="col-3 col-md-2">
+                <label class="form-label">@L["MaxCredits"]</label>
+                <input type="number" class="form-control" value="@MaxCredits" @oninput="OnMaxCreditsChanged" />
+            </div>
+        </div>
+
+        <!-- Pager -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="text-muted small">
+                @L["Total"]: @TotalCount
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-outline-secondary" @onclick="async () => await GoToPageAsync(CurrentPage - 1)" disabled="@(CurrentPage <= 1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="btn btn-outline-secondary disabled">@CurrentPage</span>
+                <button class="btn btn-outline-secondary" @onclick="async () => await GoToPageAsync(CurrentPage + 1)" disabled="@((CurrentPage * PageSize) >= TotalCount)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        @if (MyCourses == null || !MyCourses.Any())
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                @L["Student:NoCoursesEnrolled"]
+            </div>
+        }
+        else if (FilteredCourses == null || !FilteredCourses.Any())
+        {
+            <div class="alert alert-warning">
+                <i class="fas fa-search me-2"></i>
+                @L["No results found."]
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var course in FilteredCourses)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">@course.Name</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                <strong>@L["CourseCode"]:</strong> @course.Code
+                            </div>
+                            <div class="mb-3">
+                                <strong>@L["Credits"]:</strong> @course.Credits
+                            </div>
+                            <div class="mb-3">
+                                <strong>@L["Status"]:</strong>
+                                <span class="badge @GetCourseStatusBadgeClass(course.Status)">
+                                    @L[$"Enum:CourseStatus.{course.Status}"]
+                                </span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(course.Description))
+                            {
+                                <div class="mb-3">
+                                    <strong>@L["Description"]:</strong>
+                                    <p class="text-muted mb-0">@course.Description</p>
+                                </div>
+                            }
+                            @if (course.TeacherName != null)
+                            {
+                                <div class="mb-3">
+                                    <strong>@L["Teacher"]:</strong> @course.TeacherName
+                                </div>
+                            }
+
+                            @* Display student's grade for this course *@
+                            @{
+                                var courseGrade = CourseGrades.FirstOrDefault(g => g.CourseId == course.Id);
+                            }
+                            @if (courseGrade != null && courseGrade.GradeValue > 0)
+                            {
+                                <div class="mb-3">
+                                    <strong>@L["MyGrade"]:</strong>
+                                    <span class="badge @GetGradeBadgeClass(courseGrade.GradeValue)">
+                                        @courseGrade.GradeValue.ToString("F1")
+                                    </span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(courseGrade.Comments))
+                                {
+                                    <div class="mb-3">
+                                        <strong>@L["TeacherComments"]:</strong>
+                                        <p class="text-muted small mb-0">@courseGrade.Comments</p>
+                                    </div>
+                                }
+                            }
+                        </div>
+                            <div class="card-footer bg-transparent">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    @L["CreatedDate"]: @course.CreationTime.ToShortDateString()
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @* Summary Statistics *@
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L["Student:CourseSummary"]</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 col-md-3">
+                                <div class="border-end">
+                                    <h3 class="text-primary">@TotalCourses</h3>
+                                    <p class="text-muted mb-0">@L["TotalCourses"]</p>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border-end">
+                                    <h3 class="text-success">@ActiveCourses</h3>
+                                    <p class="text-muted mb-0">@L["ActiveCourses"]</p>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border-end">
+                                    <h3 class="text-warning">@TotalCredits</h3>
+                                    <p class="text-muted mb-0">@L["TotalCredits"]</p>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <h3 class="text-info">@AverageGrade.ToString("F2")</h3>
+                                <p class="text-muted mb-0">@L["AverageGrade"]</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string GetCourseStatusBadgeClass(EnumCourseStatus status)
+    {
+        return status switch
+        {
+            EnumCourseStatus.NotStarted => "bg-secondary",
+            EnumCourseStatus.InProgress => "bg-primary",
+            EnumCourseStatus.Completed => "bg-success",
+            EnumCourseStatus.Cancelled => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetGradeBadgeClass(double grade)
+    {
+        if (grade >= 85) return "bg-success";
+        if (grade >= 70) return "bg-primary";
+        if (grade >= 60) return "bg-warning";
+        return "bg-danger";
+    }
+}

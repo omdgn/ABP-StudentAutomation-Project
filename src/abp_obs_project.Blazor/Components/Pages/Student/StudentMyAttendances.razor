@@ -1,0 +1,113 @@
+@page "/student/attendances"
+@using abp_obs_project.Attendances
+@using abp_obs_project.Courses
+@inherits abp_obs_projectComponentBase
+@attribute [Authorize]
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-calendar-check me-2"></i>@L["Menu:StudentAttendances"]
+            </h1>
+        </div>
+    </div>
+
+    @if (!IsStudent)
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            @L["Dashboard:NoAccessMessage"]
+        </div>
+    }
+    else
+    {
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label">@L["Course"]</label>
+                <select class="form-select" @onchange="OnCourseChanged">
+                    <option value="">@L["AllCourses"]</option>
+                    @foreach (var c in MyCourses)
+                    {
+                        <option value="@c.Id">@c.Name (@c.Code)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">@L["Status"]</label>
+                <select class="form-select" @onchange="OnStatusChanged">
+                    <option value="">@L["All"]</option>
+                    <option value="true">@L["Present"]</option>
+                    <option value="false">@L["Absent"]</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">@L["Date"]</label>
+                <input type="date" class="form-control" value="@DateFilterString" @onchange="OnDateChanged" />
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+                <button class="btn btn-outline-secondary" @onclick="ClearFilters">@L["ClearFilters"]</button>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4 text-center">
+            <div class="col-6 col-md-3">
+                <div class="card border-info"><div class="card-body"><div class="text-muted">@L["Total"]</div><h3 class="text-info mb-0">@TotalCount</h3></div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-success"><div class="card-body"><div class="text-muted">@L["Present"]</div><h3 class="text-success mb-0">@PresentCount</h3></div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-danger"><div class="card-body"><div class="text-muted">@L["Absent"]</div><h3 class="text-danger mb-0">@AbsentCount</h3></div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-primary"><div class="card-body"><div class="text-muted">@L["AttendanceRate"]</div><h3 class="text-primary mb-0">@AttendanceRate.ToString("P0")</h3></div></div>
+            </div>
+        </div>
+
+        @if (FilteredAttendances == null || !FilteredAttendances.Any())
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                @L["No results found."]
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0">@L["MyAttendances"]</h5></div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>@L["Date"]</th>
+                                    <th>@L["CourseCode"]</th>
+                                    <th>@L["CourseName"]</th>
+                                    <th>@L["Status"]</th>
+                                    <th>@L["Remarks"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var a in FilteredAttendances.OrderByDescending(x => x.AttendanceDate))
+                                {
+                                    var c = MyCourses.FirstOrDefault(x => x.Id == a.CourseId);
+                                    <tr>
+                                        <td>@a.AttendanceDate.ToShortDateString()</td>
+                                        <td>@(c?.Code ?? "-")</td>
+                                        <td>@(c?.Name ?? a.CourseName ?? "-")</td>
+                                        <td>
+                                            <span class="badge @(a.IsPresent ? "bg-success" : "bg-danger")">@(a.IsPresent ? L["Present"] : L["Absent"])</span>
+                                        </td>
+                                        <td>@(string.IsNullOrWhiteSpace(a.Remarks) ? "-" : a.Remarks)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+

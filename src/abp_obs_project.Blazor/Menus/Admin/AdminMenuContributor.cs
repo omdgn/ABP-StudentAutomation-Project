@@ -120,6 +120,10 @@ public class AdminMenuContributor : IMenuContributor
         );
 
         // Administration group (Identity, Settings, etc.) - order 6
+        // MultiTenancyConsts.IsEnabled is a compile-time constant.
+        // One of the branches becomes unreachable and triggers CS0162.
+        // Suppress the warning for this intentional pattern.
+        #pragma warning disable CS0162
         if (MultiTenancyConsts.IsEnabled)
         {
             administration.SetSubItemOrder(TenantManagementMenuNames.GroupName, 1);
@@ -128,6 +132,7 @@ public class AdminMenuContributor : IMenuContributor
         {
             administration.TryRemoveMenuItem(TenantManagementMenuNames.GroupName);
         }
+        #pragma warning restore CS0162
 
         administration.SetSubItemOrder(IdentityMenuNames.GroupName, 2);
         administration.SetSubItemOrder(SettingManagementMenus.GroupName, 3);

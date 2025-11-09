@@ -159,6 +159,29 @@ public class AttendanceAppService : ApplicationService, IAttendanceAppService
     }
 
     /// <summary>
+    /// Lists attendances for the current user (student).
+    /// Requires only default permission; enforces self by CurrentUser.Email.
+    /// </summary>
+    public virtual async Task<ListResultDto<AttendanceDto>> GetMyAttendancesAsync()
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return new ListResultDto<AttendanceDto>(Array.Empty<AttendanceDto>());
+        }
+
+        var student = await _studentRepository.FindByEmailAsync(email);
+        if (student == null)
+        {
+            return new ListResultDto<AttendanceDto>(Array.Empty<AttendanceDto>());
+        }
+
+        var list = await _attendanceRepository.GetAttendancesByStudentIdAsync(student.Id);
+        var dtos = list.Select(a => ObjectMapper.Map<Attendance, AttendanceDto>(a)).ToList();
+        return new ListResultDto<AttendanceDto>(dtos);
+    }
+
+    /// <summary>
     /// Helper method to map attendance to DTO with student and course information
     /// </summary>
     private async Task<AttendanceDto> MapAttendanceToDtoAsync(Attendance attendance)

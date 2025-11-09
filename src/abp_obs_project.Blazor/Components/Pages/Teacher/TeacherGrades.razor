@@ -84,7 +84,14 @@
                                 Field="@nameof(GradeDto.Status)"
                                 Caption="@L["Status"]">
                     <DisplayTemplate>
-                        @L[$"Enum:GradeStatus.{context.Status}"]
+                        @{
+                            var statusText = context.Status == EnumGradeStatus.Passed
+                                ? "Passed"
+                                : context.Status == EnumGradeStatus.Failed
+                                    ? "Failed"
+                                    : "-";
+                        }
+                        @statusText
                     </DisplayTemplate>
                 </DataGridColumn>
                 <DataGridColumn TItem="GradeDto"

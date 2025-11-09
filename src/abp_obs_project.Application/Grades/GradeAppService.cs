@@ -170,6 +170,41 @@ public class GradeAppService : ApplicationService, IGradeAppService
     }
 
     /// <summary>
+    /// Lists grades for the current user (student).
+    /// Requires only default permission; enforces self by CurrentUser.Email.
+    /// </summary>
+    public virtual async Task<ListResultDto<GradeDto>> GetMyGradesAsync()
+    {
+        var email = CurrentUser.Email;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return new ListResultDto<GradeDto>(Array.Empty<GradeDto>());
+        }
+
+        var student = await _studentRepository.FindByEmailAsync(email);
+        if (student == null)
+        {
+            return new ListResultDto<GradeDto>(Array.Empty<GradeDto>());
+        }
+
+        var items = await _gradeRepository.GetListWithNavigationPropertiesAsync(
+            studentId: student.Id,
+            maxResultCount: int.MaxValue,
+            skipCount: 0
+        );
+
+        var dtos = items.Select(item =>
+        {
+            var dto = ObjectMapper.Map<Grade, GradeDto>(item.Grade);
+            dto.StudentName = $"{item.Student.FirstName} {item.Student.LastName}";
+            dto.CourseName = item.Course.Name;
+            return dto;
+        }).ToList();
+
+        return new ListResultDto<GradeDto>(dtos);
+    }
+
+    /// <summary>
     /// Helper method to map grade to DTO with student and course information
     /// </summary>
     private async Task<GradeDto> MapGradeToDtoAsync(Grade grade)
