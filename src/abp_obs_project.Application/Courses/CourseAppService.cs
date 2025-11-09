@@ -8,6 +8,7 @@ using abp_obs_project.Teachers;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
+using Volo.Abp;
 
 namespace abp_obs_project.Courses;
 
@@ -168,6 +169,7 @@ public class CourseAppService : ApplicationService, ICourseAppService
     /// <summary>
     /// Returns the list of courses that the current student is enrolled in.
     /// </summary>
+    [RemoteService(false)]
     public virtual async Task<ListResultDto<CourseDto>> GetMyCoursesAsync()
     {
         var email = CurrentUser.Email;

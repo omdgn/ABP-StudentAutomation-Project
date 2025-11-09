@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
+using Volo.Abp;
 
 namespace abp_obs_project.Courses;
 
@@ -15,6 +16,7 @@ public interface ICourseAppService
     /// <summary>
     /// Returns the list of courses that the current student is enrolled in.
     /// </summary>
+    [RemoteService(false)]
     Task<ListResultDto<CourseDto>> GetMyCoursesAsync();
 
     /// <summary>
