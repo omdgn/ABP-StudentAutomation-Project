@@ -1,0 +1,269 @@
+@page "/student"
+@page "/student/dashboard"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Students
+@using abp_obs_project.Courses
+@using abp_obs_project.Grades
+@using abp_obs_project.Attendances
+@using Volo.Abp.AspNetCore.Components.Web
+@inherits abp_obs_projectComponentBase
+@attribute [Authorize]
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">
+                <i class="fas fa-chart-line me-2"></i>@L["Dashboard:Student"]
+            </h1>
+        </div>
+    </div>
+
+    @if (IsStudent)
+    {
+        <!-- Student Dashboard -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="mb-3">@L["Dashboard:Overview"]</h3>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <!-- Enrolled Courses Card -->
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-primary h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:MyEnrolledCourses"]</h6>
+                                <h2 class="mb-0">@TotalEnrolledCourses</h2>
+                            </div>
+                            <div class="text-primary" style="font-size: 3rem;">
+                                <i class="fas fa-book"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/student/my-courses" class="text-decoration-none">
+                            @L["Dashboard:ViewAll"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grade Point Average Card -->
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-success h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:MyGPA"]</h6>
+                                <h2 class="mb-0">@AverageGrade.ToString("F2")</h2>
+                            </div>
+                            <div class="text-success" style="font-size: 3rem;">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/student/grades" class="text-decoration-none">
+                            @L["Dashboard:ViewMyGrades"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Absences Card -->
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-warning h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">@L["Dashboard:MyTotalAbsences"]</h6>
+                                <h2 class="mb-0">@TotalAbsences</h2>
+                            </div>
+                            <div class="text-warning" style="font-size: 3rem;">
+                                <i class="fas fa-calendar-times"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <a href="/student/attendances" class="text-decoration-none">
+                            @L["Dashboard:ViewMyAttendances"] <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Grades -->
+        @if (RecentGrades != null && RecentGrades.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">@L["Dashboard:RecentGrades"]</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>@L["Course"]</th>
+                                            <th>@L["Grade"]</th>
+                                            <th>@L["Comments"]</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var grade in RecentGrades)
+                                        {
+                                            <tr>
+                                                <td>@grade.CourseName</td>
+                                                <td>
+                                                    <span class="badge @GetGradeBadgeClass(grade.GradeValue)">
+                                                        @grade.GradeValue.ToString("F1")
+                                                    </span>
+                                                </td>
+                                                <td>@(string.IsNullOrWhiteSpace(grade.Comments) ? "-" : grade.Comments)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>@L["Dashboard:NoGradesYet"]
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Recent Courses -->
+        @if (RecentCourses != null && RecentCourses.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">@L["Dashboard:MyRecentCourses"]</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>@L["CourseCode"]</th>
+                                            <th>@L["CourseName"]</th>
+                                            <th>@L["Credits"]</th>
+                                            <th>@L["Status"]</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var course in RecentCourses)
+                                        {
+                                            <tr>
+                                                <td>@course.Code</td>
+                                                <td>@course.Name</td>
+                                                <td>@course.Credits</td>
+                                                <td>
+                                                    <span class="badge @GetCourseStatusBadgeClass(course.Status)">
+                                                        @L[$"Enum:CourseStatus.{course.Status}"]
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>@L["Dashboard:NoCoursesEnrolled"]
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Quick Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L["Dashboard:QuickActions"]</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <a href="/student/my-courses" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-book fa-2x d-block mb-2"></i>
+                                    @L["Menu:StudentMyCourses"]
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="/student/grades" class="btn btn-outline-success w-100 py-3">
+                                    <i class="fas fa-star fa-2x d-block mb-2"></i>
+                                    @L["Menu:StudentGrades"]
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="/student/attendances" class="btn btn-outline-warning w-100 py-3">
+                                    <i class="fas fa-calendar-check fa-2x d-block mb-2"></i>
+                                    @L["Menu:StudentAttendances"]
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Non-Student Users -->
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @L["Dashboard:NoAccessMessage"]
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string GetGradeBadgeClass(double grade)
+    {
+        if (grade >= 85) return "bg-success";
+        if (grade >= 70) return "bg-primary";
+        if (grade >= 60) return "bg-warning";
+        return "bg-danger";
+    }
+
+    private string GetCourseStatusBadgeClass(EnumCourseStatus status)
+    {
+        return status switch
+        {
+            EnumCourseStatus.NotStarted => "bg-secondary",
+            EnumCourseStatus.InProgress => "bg-primary",
+            EnumCourseStatus.Completed => "bg-success",
+            EnumCourseStatus.Cancelled => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

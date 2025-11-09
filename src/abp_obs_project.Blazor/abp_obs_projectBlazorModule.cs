@@ -220,6 +220,7 @@ public class abp_obs_projectBlazorModule : AbpModule
         {
             options.MenuContributors.Add(new AdminMenuContributor());
             options.MenuContributors.Add(new Menus.Teacher.TeacherMenuContributor());
+            options.MenuContributors.Add(new Menus.Student.StudentMenuContributor());
         });
     }
 

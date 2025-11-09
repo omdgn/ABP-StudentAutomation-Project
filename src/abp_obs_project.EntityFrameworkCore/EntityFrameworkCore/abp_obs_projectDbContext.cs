@@ -1,5 +1,6 @@
 ﻿using abp_obs_project.Attendances;
 using abp_obs_project.Courses;
+using abp_obs_project.Enrollments;
 using abp_obs_project.Grades;
 using abp_obs_project.Students;
 using abp_obs_project.Teachers;
@@ -38,6 +39,7 @@ public class abp_obs_projectDbContext :
     public DbSet<Course> Courses { get; set; } = null!;
     public DbSet<Grade> Grades { get; set; } = null!;
     public DbSet<Attendance> Attendances { get; set; } = null!;
+    public DbSet<Enrollment> Enrollments { get; set; } = null!;
 
     #endregion
 
@@ -306,6 +308,50 @@ public class abp_obs_projectDbContext :
             b.HasIndex(x => x.StudentId);
             b.HasIndex(x => x.CourseId);
             b.HasIndex(x => new { x.StudentId, x.CourseId, x.AttendanceDate });
+        });
+
+        // Enrollment entity configuration
+        builder.Entity<Enrollment>(b =>
+        {
+            b.ToTable(abp_obs_projectConsts.DbTablePrefix + "Enrollments", abp_obs_projectConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.StudentId)
+                .HasColumnName(nameof(Enrollment.StudentId))
+                .IsRequired();
+
+            b.Property(x => x.CourseId)
+                .HasColumnName(nameof(Enrollment.CourseId))
+                .IsRequired();
+
+            b.Property(x => x.EnrolledAt)
+                .HasColumnName(nameof(Enrollment.EnrolledAt))
+                .IsRequired();
+
+            b.Property(x => x.WithdrawnAt)
+                .HasColumnName(nameof(Enrollment.WithdrawnAt))
+                .IsRequired(false);
+
+            b.Property(x => x.Status)
+                .HasColumnName(nameof(Enrollment.Status))
+                .IsRequired();
+
+            // Foreign keys with no cascade delete
+            b.HasOne<Student>()
+                .WithMany()
+                .HasForeignKey(x => x.StudentId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            b.HasOne<Course>()
+                .WithMany()
+                .HasForeignKey(x => x.CourseId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Indexes
+            b.HasIndex(x => x.StudentId);
+            b.HasIndex(x => x.CourseId);
+            b.HasIndex(x => new { x.StudentId, x.CourseId });
+            b.HasIndex(x => x.Status);
         });
     }
 }

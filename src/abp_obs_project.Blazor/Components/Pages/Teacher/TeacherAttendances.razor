@@ -1,0 +1,255 @@
+@page "/teacher/attendances"
+@using abp_obs_project.Permissions
+@using abp_obs_project.Attendances
+@using abp_obs_project.Students
+@using abp_obs_project.Courses
+@using Volo.Abp.AspNetCore.Components.Web
+@using Volo.Abp.Application.Dtos
+@using Microsoft.AspNetCore.WebUtilities
+@inherits abp_obs_projectComponentBase
+@inject IAttendanceAppService AttendanceAppService
+@inject IStudentAppService StudentAppService
+@inject ICourseAppService CourseAppService
+@attribute [Authorize]
+
+<!-- Add Attendance Form -->
+<Card Class="mb-4">
+    <CardHeader>
+        <h4>
+            <i class="fas fa-plus-circle me-2"></i>@L["AddAttendance"]
+        </h4>
+    </CardHeader>
+    <CardBody>
+        <Row>
+            <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Course"] *</FieldLabel>
+                    <Select TValue="Guid" SelectedValue="@NewAttendance.CourseId" SelectedValueChanged="@OnFormCourseChanged">
+                        <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectCourse"] --</SelectItem>
+                        @foreach (var course in MyCourses)
+                        {
+                            <SelectItem TValue="Guid" Value="@course.Id">@course.Name (@course.Code)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Student"] *</FieldLabel>
+                    <Select TValue="Guid" @bind-SelectedValue="@NewAttendance.StudentId" Disabled="@(NewAttendance.CourseId == Guid.Empty)">
+                        <SelectItem TValue="Guid" Value="Guid.Empty">-- @L[NewAttendance.CourseId == Guid.Empty ? "SelectCourseFirst" : "SelectStudent"] --</SelectItem>
+                        @foreach (var student in FilteredStudentsForForm)
+                        {
+                            <SelectItem TValue="Guid" Value="@student.Id">@student.FirstName @student.LastName (@student.StudentNumber)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            </Column>
+        </Row>
+        <Row>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Date"] *</FieldLabel>
+                    <DateEdit TValue="DateTime" @bind-Date="@NewAttendance.AttendanceDate" InputMode="DateInputMode.Date" />
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Status"] *</FieldLabel>
+                    <Select TValue="bool" @bind-SelectedValue="@NewAttendance.IsPresent">
+                        <SelectItem TValue="bool" Value="true">@L["Present"]</SelectItem>
+                        <SelectItem TValue="bool" Value="false">@L["Absent"]</SelectItem>
+                    </Select>
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop" Class="d-flex align-items-end">
+                <Field Style="width: 100%;">
+                    <Button Color="Color.Primary" Clicked="CreateAttendanceAsync" Block>
+                        <i class="fas fa-save me-1"></i>@L["Save"]
+                    </Button>
+                </Field>
+            </Column>
+        </Row>
+        <Row>
+            <Column ColumnSize="ColumnSize.Is12">
+                <Field>
+                    <FieldLabel>@L["Remarks"]</FieldLabel>
+                    <MemoEdit @bind-Text="@NewAttendance.Remarks" Rows="2" Placeholder="@L["EnterRemarks"]" />
+                </Field>
+            </Column>
+        </Row>
+    </CardBody>
+</Card>
+
+<!-- Attendance List -->
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h4>
+                    <i class="fas fa-list me-2"></i>@L["AttendanceRecords"]
+                </h4>
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        <!-- Filters -->
+        <Row Class="mb-3">
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Course"]</FieldLabel>
+                    <Select TValue="string" SelectedValue="@(FilterCourseId?.ToString() ?? string.Empty)" SelectedValueChanged="@OnCourseFilterChangedString">
+                        <SelectItem TValue="string" Value="@string.Empty">@L["All"]</SelectItem>
+                        @foreach (var course in MyCourses)
+                        {
+                            <SelectItem TValue="string" Value="@course.Id.ToString()">@course.Name (@course.Code)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Date"]</FieldLabel>
+                    <DateEdit TValue="DateTime?" Date="@FilterDate" DateChanged="OnDateFilterChanged" InputMode="DateInputMode.Date">
+                    </DateEdit>
+                    @if (FilterDate.HasValue)
+                    {
+                        <Button Color="Color.Secondary" Size="Size.Small" Clicked="ClearDateFilterAsync" Class="mt-1">
+                            <i class="fa fa-times me-1"></i>@L["Clear"]
+                        </Button>
+                    }
+                </Field>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is12.Is4.OnDesktop">
+                <Field>
+                    <FieldLabel>@L["Status"]</FieldLabel>
+                    <Select TValue="string" SelectedValue="@(FilterIsPresent?.ToString() ?? string.Empty)" SelectedValueChanged="@OnStatusFilterChangedString">
+                        <SelectItem TValue="string" Value="@string.Empty">@L["All"]</SelectItem>
+                        <SelectItem TValue="string" Value="@bool.TrueString">@L["Present"]</SelectItem>
+                        <SelectItem TValue="string" Value="@bool.FalseString">@L["Absent"]</SelectItem>
+                    </Select>
+                </Field>
+            </Column>
+        </Row>
+
+        <DataGrid @ref="AttendanceDataGrid"
+                  TItem="AttendanceDto"
+                  Data="AttendanceList"
+                  ReadData="OnDataGridReadAsync"
+                  TotalItems="TotalCount"
+                  ShowPager="true"
+                  PageSize="PageSize"
+                  CurrentPage="CurrentPage"
+                  Responsive="true">
+            <DataGridColumns>
+                <DataGridColumn TItem="AttendanceDto"
+                                Field="@nameof(AttendanceDto.StudentName)"
+                                Caption="@L["Student"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="AttendanceDto"
+                                Field="@nameof(AttendanceDto.CourseName)"
+                                Caption="@L["Course"]">
+                </DataGridColumn>
+                <DataGridColumn TItem="AttendanceDto"
+                                Field="@nameof(AttendanceDto.AttendanceDate)"
+                                Caption="@L["Date"]">
+                    <DisplayTemplate>
+                        @context.AttendanceDate.ToShortDateString()
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="AttendanceDto"
+                                Field="@nameof(AttendanceDto.IsPresent)"
+                                Caption="@L["Status"]">
+                    <DisplayTemplate>
+                        @if (context.IsPresent)
+                        {
+                            <span class="badge bg-success">@L["Present"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">@L["Absent"]</span>
+                        }
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="AttendanceDto"
+                                Field="@nameof(AttendanceDto.Remarks)"
+                                Caption="@L["Remarks"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        @(string.IsNullOrWhiteSpace(context.Remarks) ? "-" : context.Remarks)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="AttendanceDto"
+                                Field="@nameof(AttendanceDto.Id)"
+                                Caption="@L["Actions"]"
+                                Sortable="false">
+                    <DisplayTemplate>
+                        @if (CanEditAttendance)
+                        {
+                            <Button Color="Color.Primary" Size="Size.Small" Clicked="() => OpenEditModalAsync(context)">
+                                <i class="fas fa-edit"></i>
+                            </Button>
+                        }
+                        @if (CanDeleteAttendance)
+                        {
+                            <Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAttendanceAsync(context)">
+                                <i class="fas fa-trash"></i>
+                            </Button>
+                        }
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+<!-- Edit Modal -->
+<Modal @ref="EditModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <ModalHeader>
+            <ModalTitle>@L["EditAttendance"]</ModalTitle>
+            <CloseButton Clicked="CloseEditModalAsync" />
+        </ModalHeader>
+        <ModalBody>
+            <Field>
+                <FieldLabel>@L["Course"] *</FieldLabel>
+                <Select TValue="Guid" @bind-SelectedValue="@EditingAttendance.CourseId">
+                    <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectCourse"] --</SelectItem>
+                    @foreach (var course in MyCourses)
+                    {
+                        <SelectItem TValue="Guid" Value="@course.Id">@course.Name (@course.Code)</SelectItem>
+                    }
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Student"] *</FieldLabel>
+                <Select TValue="Guid" @bind-SelectedValue="@EditingAttendance.StudentId">
+                    <SelectItem TValue="Guid" Value="Guid.Empty">-- @L["SelectStudent"] --</SelectItem>
+                    @foreach (var student in AllStudents)
+                    {
+                        <SelectItem TValue="Guid" Value="@student.Id">@student.FirstName @student.LastName (@student.StudentNumber)</SelectItem>
+                    }
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Date"] *</FieldLabel>
+                <DateEdit TValue="DateTime" @bind-Date="@EditingAttendance.AttendanceDate" InputMode="DateInputMode.Date" />
+            </Field>
+            <Field>
+                <FieldLabel>@L["Status"] *</FieldLabel>
+                <Select TValue="bool" @bind-SelectedValue="@EditingAttendance.IsPresent">
+                    <SelectItem TValue="bool" Value="true">@L["Present"]</SelectItem>
+                    <SelectItem TValue="bool" Value="false">@L["Absent"]</SelectItem>
+                </Select>
+            </Field>
+            <Field>
+                <FieldLabel>@L["Remarks"]</FieldLabel>
+                <MemoEdit @bind-Text="@EditingAttendance.Remarks" Rows="3" />
+            </Field>
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseEditModalAsync">@L["Cancel"]</Button>
+            <Button Color="Color.Primary" Clicked="UpdateAttendanceAsync">@L["Save"]</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>

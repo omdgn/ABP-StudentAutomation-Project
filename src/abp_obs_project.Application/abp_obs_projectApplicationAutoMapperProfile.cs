@@ -4,6 +4,7 @@ using abp_obs_project.Teachers;
 using abp_obs_project.Courses;
 using abp_obs_project.Grades;
 using abp_obs_project.Attendances;
+using abp_obs_project.Enrollments;
 
 namespace abp_obs_project;
 
@@ -45,5 +46,14 @@ public class abp_obs_projectApplicationAutoMapperProfile : Profile
             .ForMember(dest => dest.StudentName, opt => opt.Ignore())
             .ForMember(dest => dest.CourseName, opt => opt.Ignore());
         CreateMap<CreateUpdateAttendanceDto, Attendance>();
+
+        // Enrollment mappings
+        // Note: StudentName, StudentNumber, CourseName and CourseCode are manually mapped in EnrollmentAppService
+        CreateMap<Enrollment, EnrollmentDto>()
+            .ForMember(dest => dest.StudentName, opt => opt.Ignore())
+            .ForMember(dest => dest.StudentNumber, opt => opt.Ignore())
+            .ForMember(dest => dest.CourseName, opt => opt.Ignore())
+            .ForMember(dest => dest.CourseCode, opt => opt.Ignore());
+        CreateMap<CreateEnrollmentDto, Enrollment>();
     }
 }

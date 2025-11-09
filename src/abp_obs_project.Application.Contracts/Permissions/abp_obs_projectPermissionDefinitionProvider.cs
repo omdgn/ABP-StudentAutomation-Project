@@ -100,6 +100,23 @@ public class abp_obs_projectPermissionDefinitionProvider : PermissionDefinitionP
         attendancesPermission.AddChild(
             abp_obs_projectPermissions.Attendances.ViewAll,
             L("Permission:Attendances.ViewAll"));
+
+        // Enrollment Management
+        var enrollmentsPermission = obsGroup.AddPermission(
+            abp_obs_projectPermissions.Enrollments.Default,
+            L("Permission:Enrollments"));
+        enrollmentsPermission.AddChild(
+            abp_obs_projectPermissions.Enrollments.Create,
+            L("Permission:Enrollments.Create"));
+        enrollmentsPermission.AddChild(
+            abp_obs_projectPermissions.Enrollments.Edit,
+            L("Permission:Enrollments.Edit"));
+        enrollmentsPermission.AddChild(
+            abp_obs_projectPermissions.Enrollments.Delete,
+            L("Permission:Enrollments.Delete"));
+        enrollmentsPermission.AddChild(
+            abp_obs_projectPermissions.Enrollments.ViewAll,
+            L("Permission:Enrollments.ViewAll"));
     }
 
     private static LocalizableString L(string name)

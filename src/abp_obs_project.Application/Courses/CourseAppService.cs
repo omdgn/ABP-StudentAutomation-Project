@@ -69,8 +69,10 @@ public class CourseAppService : ApplicationService, ICourseAppService
             input.TeacherId = teacher.Id;
         }
 
-        // Use cache only for simple list requests (no filters, no pagination)
-        var isSimpleListRequest = string.IsNullOrWhiteSpace(input.FilterText) &&
+        // Use cache only for admin users with simple list requests (no filters, no pagination)
+        // Teachers should NOT use cache because their data is filtered by TeacherId
+        var isSimpleListRequest = hasViewAll &&
+                                  string.IsNullOrWhiteSpace(input.FilterText) &&
                                   string.IsNullOrWhiteSpace(input.Name) &&
                                   string.IsNullOrWhiteSpace(input.Code) &&
                                   input.CreditsMin == null &&

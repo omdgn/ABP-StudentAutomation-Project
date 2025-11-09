@@ -8,12 +8,16 @@ using abp_obs_project.Teachers;
 using Blazorise;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
+using abp_obs_project.Grades;
+using abp_obs_project.Students;
 
 namespace abp_obs_project.Blazor.Components.Pages.Teacher;
 
 public partial class TeacherMyCourses
 {
     [Inject] public ICourseAppService CourseAppService { get; set; } = default!;
+    [Inject] public IGradeAppService GradeAppService { get; set; } = default!;
+    [Inject] public IStudentAppService StudentAppService { get; set; } = default!;
     [Inject] public new IAuthorizationService AuthorizationService { get; set; } = default!;
     [Inject] public NavigationManager NavigationManager { get; set; } = default!;
 
@@ -24,11 +28,17 @@ public partial class TeacherMyCourses
     // Modals
     private Modal CourseDetailsModal { get; set; } = null!;
     private Modal UpdateStatusModal { get; set; } = null!;
+    private Modal AddStudentModal { get; set; } = null!;
 
     // Selected Course
     private CourseDto? SelectedCourse { get; set; }
     private CourseDto? EditingCourse { get; set; }
     private EnumCourseStatus NewStatus { get; set; }
+
+    // Students of selected course
+    private List<GradeDto> SelectedCourseGrades { get; set; } = new();
+    private List<StudentLookup> AvailableStudentsToAdd { get; set; } = new();
+    private Guid? SelectedStudentToAdd { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,6 +85,7 @@ public partial class TeacherMyCourses
     private async Task OpenCourseDetailsModal(CourseDto course)
     {
         SelectedCourse = course;
+        await LoadSelectedCourseStudentsAsync(course.Id);
         await CourseDetailsModal.Show();
     }
 
@@ -82,6 +93,17 @@ public partial class TeacherMyCourses
     {
         await CourseDetailsModal.Hide();
         SelectedCourse = null;
+    }
+
+    private async Task LoadSelectedCourseStudentsAsync(Guid courseId)
+    {
+        // Get grades for the course (represents enrolled students)
+        var grades = await GradeAppService.GetListAsync(new GetGradesInput
+        {
+            MaxResultCount = 1000,
+            CourseId = courseId
+        });
+        SelectedCourseGrades = grades.Items.ToList();
     }
 
     // Update Status Modal
@@ -126,6 +148,69 @@ public partial class TeacherMyCourses
             await HandleErrorAsync(ex);
         }
     }
+
+    // Add student to course (via creating an initial grade as enrollment)
+    private async Task OpenAddStudentModal()
+    {
+        if (SelectedCourse == null)
+        {
+            return;
+        }
+
+        // Load all students and exclude already enrolled
+        var allStudents = await StudentAppService.GetListAsync(new GetStudentsInput
+        {
+            MaxResultCount = 1000
+        });
+
+        var enrolledIds = SelectedCourseGrades.Select(g => g.StudentId).ToHashSet();
+        AvailableStudentsToAdd = allStudents.Items
+            .Where(s => !enrolledIds.Contains(s.Id))
+            .Select(s => new StudentLookup(s.Id, $"{s.FirstName} {s.LastName} ({s.StudentNumber})"))
+            .OrderBy(s => s.DisplayName)
+            .ToList();
+
+        SelectedStudentToAdd = AvailableStudentsToAdd.Count > 0
+            ? AvailableStudentsToAdd[0].Id
+            : (Guid?)null;
+        await AddStudentModal.Show();
+    }
+
+    private async Task CloseAddStudentModal()
+    {
+        await AddStudentModal.Hide();
+        SelectedStudentToAdd = null;
+        AvailableStudentsToAdd.Clear();
+    }
+
+    private async Task AddStudentToCourseAsync()
+    {
+        if (SelectedCourse == null || SelectedStudentToAdd == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await GradeAppService.CreateAsync(new CreateUpdateGradeDto
+            {
+                StudentId = SelectedStudentToAdd.Value,
+                CourseId = SelectedCourse.Id,
+                GradeValue = 0.0,
+                Comments = "Enrolled"
+            });
+
+            await LoadSelectedCourseStudentsAsync(SelectedCourse.Id);
+            await CloseAddStudentModal();
+            await Message.Success(L["SuccessfullyCreated"]);
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync(ex);
+        }
+    }
+
+    private readonly record struct StudentLookup(Guid Id, string DisplayName);
 
     // Navigation
     private void NavigateToGrades(CourseDto course)

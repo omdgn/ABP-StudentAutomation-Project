@@ -1,6 +1,7 @@
 @page "/teacher/my-courses"
 @using abp_obs_project.Permissions
 @using abp_obs_project.Courses
+@using abp_obs_project.Grades
 @using Volo.Abp.AspNetCore.Components.Web
 @inherits abp_obs_projectComponentBase
 @attribute [Authorize]
@@ -135,6 +136,44 @@
                         </Field>
                     </Column>
                 </Row>
+
+                <Divider />
+
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-graduate me-2"></i>@L["Menu:MyStudents"]
+                            </h5>
+                            <Button Color="Color.Primary" Size="Size.Small" Clicked="OpenAddStudentModal">
+                                <i class="fas fa-user-plus me-1"></i>@L["NewStudent"]
+                            </Button>
+                        </div>
+
+                        @if (SelectedCourseGrades != null && SelectedCourseGrades.Any())
+                        {
+                            <DataGrid TItem="GradeDto"
+                                      Data="SelectedCourseGrades"
+                                      Responsive="true"
+                                      ShowPager="false"
+                                      Striped="true"
+                                      Hoverable="true">
+                                <DataGridColumns>
+                                    <DataGridColumn TItem="GradeDto" Field="@nameof(GradeDto.StudentName)" Caption="@L["Students"]" />
+                                    <DataGridColumn TItem="GradeDto" Field="@nameof(GradeDto.GradeValue)" Caption="@L["Grades"]" />
+                                </DataGridColumns>
+                            </DataGrid>
+                        }
+                        else
+                        {
+                            <Alert Color="Color.Light" Visible="true">
+                                <AlertMessage>
+                                    <i class="fas fa-info-circle me-2"></i>@L["MyCourses:NoCourses"]
+                                </AlertMessage>
+                            </Alert>
+                        }
+                    </Column>
+                </Row>
             }
         </ModalBody>
         <ModalFooter>
@@ -173,4 +212,42 @@
             <Button Color="Color.Primary" Clicked="UpdateCourseStatusAsync">@L["Save"]</Button>
         </ModalFooter>
     </ModalContent>
+</Modal>
+
+<!-- Add Student Modal -->
+<Modal @ref="AddStudentModal">
+    <ModalContent Centered>
+        <ModalHeader>
+            <ModalTitle>@L["NewStudent"]</ModalTitle>
+            <CloseButton Clicked="CloseAddStudentModal" />
+        </ModalHeader>
+        <ModalBody>
+            @if (AvailableStudentsToAdd.Any())
+            {
+                <Field>
+                    <FieldLabel>@L["Students"] *</FieldLabel>
+                    <Select TValue="Guid?" @bind-SelectedValue="SelectedStudentToAdd">
+                        @foreach (var s in AvailableStudentsToAdd)
+                        {
+                            <SelectItem Value="@s.Id">@s.DisplayName</SelectItem>
+                        }
+                    </Select>
+                </Field>
+                <small class="text-muted">@L["Permission:Courses.ManageStudents"]</small>
+            }
+            else
+            {
+                <Alert Color="Color.Info" Visible="true">
+                    <AlertMessage>
+                        <i class="fas fa-info-circle me-2"></i>@L["MyCourses:NoCourses"]
+                    </AlertMessage>
+                </Alert>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseAddStudentModal">@L["Cancel"]</Button>
+            <Button Color="Color.Primary" Disabled="@(!AvailableStudentsToAdd.Any() || SelectedStudentToAdd == null)" Clicked="AddStudentToCourseAsync">@L["Save"]</Button>
+        </ModalFooter>
+    </ModalContent>
+    
 </Modal>

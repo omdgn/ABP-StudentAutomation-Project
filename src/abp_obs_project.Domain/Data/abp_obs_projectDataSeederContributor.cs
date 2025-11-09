@@ -72,7 +72,14 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
                 "abp_obs_project.Attendances.ViewAll",
                 "abp_obs_project.Attendances.Create",
                 "abp_obs_project.Attendances.Edit",
-                "abp_obs_project.Attendances.Delete"
+                "abp_obs_project.Attendances.Delete",
+
+                // Enrollments
+                "abp_obs_project.Enrollments",
+                "abp_obs_project.Enrollments.ViewAll",
+                "abp_obs_project.Enrollments.Create",
+                "abp_obs_project.Enrollments.Edit",
+                "abp_obs_project.Enrollments.Delete"
             });
 
         // Also grant the same permissions to the built-in 'admin' role if it exists
@@ -113,7 +120,14 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
                 "abp_obs_project.Attendances.ViewAll",
                 "abp_obs_project.Attendances.Create",
                 "abp_obs_project.Attendances.Edit",
-                "abp_obs_project.Attendances.Delete"
+                "abp_obs_project.Attendances.Delete",
+
+                // Enrollments
+                "abp_obs_project.Enrollments",
+                "abp_obs_project.Enrollments.ViewAll",
+                "abp_obs_project.Enrollments.Create",
+                "abp_obs_project.Enrollments.Edit",
+                "abp_obs_project.Enrollments.Delete"
             });
 
         // Teacher Role
@@ -143,7 +157,14 @@ public class abp_obs_projectDataSeederContributor : IDataSeedContributor, ITrans
                 "abp_obs_project.Attendances.ViewAll",
                 "abp_obs_project.Attendances.Create",
                 "abp_obs_project.Attendances.Edit",
-                "abp_obs_project.Attendances.Delete"
+                "abp_obs_project.Attendances.Delete",
+
+                // Enrollments - Tam yetki (öğrenci kaydı yönetimi için)
+                "abp_obs_project.Enrollments",
+                "abp_obs_project.Enrollments.ViewAll",
+                "abp_obs_project.Enrollments.Create",
+                "abp_obs_project.Enrollments.Edit",
+                "abp_obs_project.Enrollments.Delete"
             });
 
         // Student Role

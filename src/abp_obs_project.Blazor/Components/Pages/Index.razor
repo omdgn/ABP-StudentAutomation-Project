@@ -1,0 +1,51 @@
+@page "/"
+@using abp_obs_project.Permissions
+@inherits abp_obs_projectComponentBase
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        if (!CurrentUser.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/authentication/login", forceLoad: true);
+            return;
+        }
+
+        // Check if user is Admin (has both Students.ViewAll AND Teachers.ViewAll permissions)
+        var hasStudentManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Students.ViewAll);
+        var hasTeacherManagement = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Teachers.ViewAll);
+
+        if (hasStudentManagement && hasTeacherManagement)
+        {
+            // Admin
+            NavigationManager.NavigateTo("/admin/dashboard", forceLoad: true);
+            return;
+        }
+
+        // Check if user is Teacher
+        var hasCoursePermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default);
+        var hasGradePermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Grades.Default);
+        var hasAttendancePermission = await AuthorizationService.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Default);
+
+        if (hasCoursePermission || hasGradePermission || hasAttendancePermission)
+        {
+            // Teacher
+            NavigationManager.NavigateTo("/teacher/dashboard", forceLoad: true);
+            return;
+        }
+
+        // Check if user is Student (has no management permissions)
+        if (!hasStudentManagement && !hasTeacherManagement && !hasCoursePermission && !hasGradePermission && !hasAttendancePermission)
+        {
+            // Student
+            NavigationManager.NavigateTo("/student/dashboard", forceLoad: true);
+            return;
+        }
+
+        // Default fallback
+        NavigationManager.NavigateTo("/authentication/login", forceLoad: true);
+    }
+}

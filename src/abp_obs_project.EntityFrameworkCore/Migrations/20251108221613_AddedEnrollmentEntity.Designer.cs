@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Volo.Abp.EntityFrameworkCore;
@@ -12,9 +13,11 @@ using abp_obs_project.EntityFrameworkCore;
 namespace abp_obs_project.Migrations
 {
     [DbContext(typeof(abp_obs_projectDbContext))]
-    partial class abp_obs_projectDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251108221613_AddedEnrollmentEntity")]
+    partial class AddedEnrollmentEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

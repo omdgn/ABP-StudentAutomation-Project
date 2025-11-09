@@ -50,4 +50,13 @@ public static class abp_obs_projectPermissions
         public const string Delete = Default + ".Delete";
         public const string ViewAll = Default + ".ViewAll";
     }
+
+    public static class Enrollments
+    {
+        public const string Default = GroupName + ".Enrollments";
+        public const string Create = Default + ".Create";
+        public const string Edit = Default + ".Edit";
+        public const string Delete = Default + ".Delete";
+        public const string ViewAll = Default + ".ViewAll";
+    }
 }

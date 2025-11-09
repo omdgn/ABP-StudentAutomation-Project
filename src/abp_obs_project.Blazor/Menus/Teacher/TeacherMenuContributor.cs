@@ -33,6 +33,8 @@ public class TeacherMenuContributor : IMenuContributor
         var hasCoursePermission = await context.IsGrantedAsync(abp_obs_projectPermissions.Courses.Default);
         var hasGradePermission = await context.IsGrantedAsync(abp_obs_projectPermissions.Grades.Default);
         var hasAttendancePermission = await context.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Default);
+        var hasGradesCreate = await context.IsGrantedAsync(abp_obs_projectPermissions.Grades.Create);
+        var hasAttendancesCreate = await context.IsGrantedAsync(abp_obs_projectPermissions.Attendances.Create);
 
         // User must have at least one teacher permission
         if (!hasCoursePermission && !hasGradePermission && !hasAttendancePermission)

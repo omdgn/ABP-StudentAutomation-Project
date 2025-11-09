@@ -1,6 +1,8 @@
 @page "/teacher/my-students"
 @using abp_obs_project.Permissions
 @using abp_obs_project.Students
+@using abp_obs_project.Courses
+@using abp_obs_project.Enrollments
 @using Volo.Abp.AspNetCore.Components.Web
 @inherits abp_obs_projectComponentBase
 @attribute [Authorize]
@@ -18,50 +20,58 @@
     <CardBody>
         @if (IsTeacher)
         {
-            @if (MyStudents != null && MyStudents.Any())
+            @if (MyCourses != null && MyCourses.Any())
             {
-                <DataGrid TItem="StudentDto"
-                          Data="MyStudents"
-                          Responsive="true"
-                          ShowPager="false"
-                          Striped="true"
-                          Hoverable="true">
-                    <DataGridColumns>
-                        <DataGridColumn TItem="StudentDto"
-                                        Field="@nameof(StudentDto.StudentNumber)"
-                                        Caption="@L["StudentNumber"]">
-                        </DataGridColumn>
-                        <DataGridColumn TItem="StudentDto"
-                                        Field="@nameof(StudentDto.FirstName)"
-                                        Caption="@L["FirstName"]">
-                        </DataGridColumn>
-                        <DataGridColumn TItem="StudentDto"
-                                        Field="@nameof(StudentDto.LastName)"
-                                        Caption="@L["LastName"]">
-                        </DataGridColumn>
-                        <DataGridColumn TItem="StudentDto"
-                                        Field="@nameof(StudentDto.Email)"
-                                        Caption="@L["Email"]">
-                        </DataGridColumn>
-                        <DataGridColumn TItem="StudentDto"
-                                        Field="@nameof(StudentDto.Gender)"
-                                        Caption="@L["Gender"]">
-                            <DisplayTemplate>
-                                @L[$"Enum:Gender.{context.Gender}"]
-                            </DisplayTemplate>
-                        </DataGridColumn>
-                        <DataGridColumn TItem="StudentDto"
-                                        Field="@nameof(StudentDto.Id)"
-                                        Caption="@L["Actions"]"
-                                        Sortable="false">
-                            <DisplayTemplate>
-                                <Button Color="Color.Primary" Size="Size.Small" Clicked="() => OpenStudentDetailsModal(context)">
-                                    <i class="fas fa-eye me-1"></i>@L["View"]
-                                </Button>
-                            </DisplayTemplate>
-                        </DataGridColumn>
-                    </DataGridColumns>
-                </DataGrid>
+                @foreach (var course in MyCourses)
+                {
+                    <Card Class="mb-4">
+                        <CardHeader>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-book me-2"></i>@course.Name (@course.Code)</h5>
+                                <div>
+                                    <Button Color="Color.Primary" Size="Size.Small" Clicked="() => OpenAddStudentModal(course.Id)">
+                                        <i class="fas fa-user-plus me-1"></i>@L["AddStudentToCourse"]
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardBody>
+                            @if (CourseEnrollments.TryGetValue(course.Id, out var enrollments) && enrollments.Any())
+                            {
+                                <DataGrid TItem="EnrollmentDto"
+                                          Data="enrollments"
+                                          ShowPager="false"
+                                          Striped="true"
+                                          Hoverable="true">
+                                    <DataGridColumns>
+                                        <DataGridColumn TItem="EnrollmentDto" Field="@nameof(EnrollmentDto.StudentName)" Caption="@L["Students"]" />
+                                        <DataGridColumn TItem="EnrollmentDto" Field="@nameof(EnrollmentDto.StudentNumber)" Caption="@L["StudentNumber"]" />
+                                        <DataGridColumn TItem="EnrollmentDto" Field="@nameof(EnrollmentDto.EnrolledAt)" Caption="@L["EnrolledDate"]">
+                                            <DisplayTemplate>
+                                                @context.EnrolledAt.ToShortDateString()
+                                            </DisplayTemplate>
+                                        </DataGridColumn>
+                                        <DataGridColumn TItem="EnrollmentDto" Caption="@L["Actions"]" Sortable="false">
+                                            <DisplayTemplate>
+                                                <Button Color="Color.Danger" Size="Size.Small" Clicked="() => RemoveStudentFromCourseAsync(context.Id)">
+                                                    <i class="fas fa-user-minus me-1"></i>@L["Remove"]
+                                                </Button>
+                                            </DisplayTemplate>
+                                        </DataGridColumn>
+                                    </DataGridColumns>
+                                </DataGrid>
+                            }
+                            else
+                            {
+                                <Alert Color="Color.Light" Visible="true">
+                                    <AlertMessage>
+                                        <i class="fas fa-info-circle me-2"></i>@L["MyStudents:NoStudents"]
+                                    </AlertMessage>
+                                </Alert>
+                            }
+                        </CardBody>
+                    </Card>
+                }
             }
             else
             {
@@ -142,3 +152,48 @@
         </ModalFooter>
     </ModalContent>
 </Modal>
+
+<!-- Add Student Modal -->
+<Modal @ref="AddStudentModal">
+    <ModalContent Centered>
+        <ModalHeader>
+            <ModalTitle>@L["AddStudentToCourse"]</ModalTitle>
+            <CloseButton Clicked="CloseAddStudentModal" />
+        </ModalHeader>
+        <ModalBody>
+            @if (AvailableStudentsToAdd.Any())
+            {
+                <Field>
+                    <FieldLabel>@L["Students"] *</FieldLabel>
+                    <Select TValue="Guid?" @bind-SelectedValue="SelectedStudentToAdd">
+                        @foreach (var s in AvailableStudentsToAdd)
+                        {
+                            <SelectItem Value="@s.Id">@s.DisplayName @(s.IsEnrolled ? $"({L["AlreadyEnrolled"]})" : string.Empty)</SelectItem>
+                        }
+                    </Select>
+                </Field>
+                @if (IsSelectedStudentAlreadyEnrolled)
+                {
+                    <Alert Color="Color.Warning" Visible="true">
+                        <AlertMessage>
+                            <i class="fas fa-exclamation-triangle me-2"></i>@L["StudentAlreadyEnrolledWarning"]
+                        </AlertMessage>
+                    </Alert>
+                }
+            }
+            else
+            {
+                <Alert Color="Color.Info" Visible="true">
+                    <AlertMessage>
+                        <i class="fas fa-info-circle me-2"></i>@L["MyStudents:NoStudents"]
+                    </AlertMessage>
+                </Alert>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <Button Color="Color.Secondary" Clicked="CloseAddStudentModal">@L["Cancel"]</Button>
+            <Button Color="Color.Primary" Disabled="@(!AvailableStudentsToAdd.Any() || SelectedStudentToAdd == null || IsSelectedStudentAlreadyEnrolled)" Clicked="AddStudentToCourseAsync">@L["AddToCourse"]</Button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
